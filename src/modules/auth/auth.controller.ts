@@ -7,9 +7,12 @@ import otp from "../../middleware/otp.middleware";
 
 
 router.post('/signup' ,Validation(Validators.Signup), authService.signup)
+router.post('/signupWithGmail' ,Validation(Validators.signupWithGmail), authService.signupWithGmail)
 router.post('/login' ,Validation(Validators.login), authService.login)
+router.post('/loginWithGmail' ,Validation(Validators.signupWithGmail), authService.loginWithGmail)
 router.patch('/verfiy-otp' ,Validation(Validators.verfiyOtp), otp.verify)
 router.post('/request-otp' ,Validation(Validators.getOtp), otp.get)
+router.patch('/forget-password' ,Validation(Validators.forgetPassword), authService.forgetPassword)
 
 
 

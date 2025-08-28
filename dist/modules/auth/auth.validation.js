@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verfiyOtp = exports.getOtp = exports.Signup = exports.login = void 0;
+exports.forgetPassword = exports.signupWithGmail = exports.verfiyOtp = exports.getOtp = exports.Signup = exports.login = void 0;
 const zod_1 = require("zod");
 const Validate = __importStar(require("../../middleware/validation.middleware"));
 exports.login = {
@@ -56,12 +56,26 @@ exports.Signup = {
 };
 exports.getOtp = {
     body: zod_1.z.strictObject({
-        email: zod_1.z.email(),
+        email: Validate.genralFields.email,
         type: zod_1.z.string(),
     })
 };
 exports.verfiyOtp = {
     body: exports.getOtp.body.extend({
         otp: Validate.genralFields.otp
+    })
+};
+exports.signupWithGmail = {
+    body: zod_1.z.strictObject({
+        idToken: zod_1.z.string()
+    })
+};
+exports.forgetPassword = {
+    body: zod_1.z.strictObject({
+        email: Validate.genralFields.email,
+        newPassword: Validate.genralFields.password,
+        confirmNewPassword: zod_1.z.string()
+    }).refine((data) => data.confirmNewPassword === data.newPassword, {
+        message: "confirmNewPassword notMatch newPassword", path: ["confirmNewPassword"]
     })
 };

@@ -7,6 +7,7 @@ import {config} from 'dotenv';
 config({path:resolve("./config/.env.development")})
 import connectDB from './DB/Connections'
 import authController from './modules/auth/auth.controller'
+import userController from './modules/user/user.controller'
 import { globalErrorHandling } from './utils/Response/error.response';
 
 
@@ -20,6 +21,7 @@ const bootstrap = (): void => {
    
    //modules-routing
    app.use("/auth", authController)  
+   app.use("/user", userController)  
 
    //main-router
    app.get("/" , (req:Request , res:Response) => {

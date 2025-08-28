@@ -1,7 +1,9 @@
-import { Document, Schema ,Types , model} from "mongoose"
+import { Document, HydratedDocument, Schema ,Types , model} from "mongoose"
+
 
 export enum genderEnum  {male = "male" , female = "female"}
 export enum roleEnum  {user = "User" , admin = "Admin"}
+export enum providerEnum  {System = "System" , Google = "Google"}
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -24,6 +26,9 @@ export interface IUser extends Document {
   changeCredentialsTime:Date;
   createdAt:Date;
   updatedAt?:Date;
+  provider:providerEnum;
+  profileImage?:string;
+  coverImages?:string[];
 }
 
 
@@ -31,7 +36,7 @@ const userSchema = new Schema<IUser> ({
   firstName: {type :String , required:true , minlength:2 , maxlength:25},
   lastName:{type :String , required:true, minlength:2 , maxlength:25},
   email: {type :String , required:true, unique:true},
-  password:{type :String , required:true},
+  password:{type:String,required:function(){return this.provider === providerEnum.System ? true : false}},
   phone:{type :String },
   age:{type :Number , required:true},
   emailOTP: String,
@@ -39,14 +44,13 @@ const userSchema = new Schema<IUser> ({
   resetPasswordOTP:String,
   resetPasswordOTPExpires:Date, 
   tempEmail:String,
+  provider:{type:String , enum:providerEnum , default: providerEnum.System},
   resetPassword: {type: Boolean,default: false},
   confirmEmail: {type: Boolean,default: false},
-  gender:{type:String , enum : {values : Object.values(genderEnum),
-       message: `Only Allowed Genders are: ${Object.values(genderEnum).join(", ")}`},
-       default:genderEnum.male},
-  role:{type:String , enum : {values : Object.values(roleEnum),
-       message:`Only Allowed Roles are : ${Object.values(genderEnum).join(", ")}`},
-       default:roleEnum.user},
+  gender:{type:String , enum : genderEnum, default:genderEnum.male},
+  role:{type:String , enum :roleEnum,default:roleEnum.user},
+  profileImage:{type:String},
+  coverImages:[String]
 },{
   timestamps:true,
   toJSON:{virtuals:true},
@@ -61,6 +65,7 @@ userSchema.virtual("userName").set(function (value:string) {
 })
 
 
-const UserModel =  model <IUser>("User" , userSchema)
+export const UserModel =  model <IUser>("User" , userSchema)
+export type HUserDocument =  HydratedDocument<IUser>
 
 export default UserModel

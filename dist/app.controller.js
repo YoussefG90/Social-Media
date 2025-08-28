@@ -11,6 +11,7 @@ const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)({ path: (0, path_1.resolve)("./config/.env.development") });
 const Connections_1 = __importDefault(require("./DB/Connections"));
 const auth_controller_1 = __importDefault(require("./modules/auth/auth.controller"));
+const user_controller_1 = __importDefault(require("./modules/user/user.controller"));
 const error_response_1 = require("./utils/Response/error.response");
 const bootstrap = () => {
     const app = (0, express_1.default)();
@@ -18,6 +19,7 @@ const bootstrap = () => {
     app.use(express_1.default.json(), (0, cors_1.default)(), (0, helmet_1.default)());
     (0, Connections_1.default)();
     app.use("/auth", auth_controller_1.default);
+    app.use("/user", user_controller_1.default);
     app.get("/", (req, res) => {
         res.json({ message: `Wellcome To ${process.env.APP_NAME} App 🤍` });
     });

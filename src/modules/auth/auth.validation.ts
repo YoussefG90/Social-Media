@@ -23,7 +23,7 @@ export const Signup = {
 
 export  const getOtp = {
     body:z.strictObject({
-        email:z.email(),
+        email:Validate.genralFields.email,
         type:z.string(),
     })
 }
@@ -34,3 +34,19 @@ export  const verfiyOtp = {
     })
 }
 
+
+
+export  const signupWithGmail = {
+    body:z.strictObject({
+        idToken:z.string()
+    })
+}
+
+export  const forgetPassword = {
+    body:z.strictObject({
+        email:Validate.genralFields.email,
+        newPassword:Validate.genralFields.password,
+        confirmNewPassword:z.string()
+    }).refine((data) => data.confirmNewPassword === data.newPassword, {
+    message: "confirmNewPassword notMatch newPassword", path: ["confirmNewPassword"]})
+}

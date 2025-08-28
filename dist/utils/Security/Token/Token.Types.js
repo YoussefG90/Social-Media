@@ -1,12 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TokenTypeEnum = exports.SignatureTypeEnum = exports.logoutEnum = void 0;
-var logoutEnum;
-(function (logoutEnum) {
-    logoutEnum["signoutFromAll"] = "signoutFromAll";
-    logoutEnum["signout"] = "signout";
-    logoutEnum["stayLoggedIn"] = "stayLoggedIn";
-})(logoutEnum || (exports.logoutEnum = logoutEnum = {}));
+exports.TokenTypeEnum = exports.SignatureTypeEnum = void 0;
 var SignatureTypeEnum;
 (function (SignatureTypeEnum) {
     SignatureTypeEnum["bearer"] = "bearer";
