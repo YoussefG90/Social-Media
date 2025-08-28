@@ -1,4 +1,4 @@
-import bcryptjs from 'bcryptjs'
+import {compare , hash} from 'bcryptjs'
 
 interface HashPayload {
   plaintext: string;
@@ -12,9 +12,9 @@ interface ComparePayload {
 
 export const generateHash = async ({plaintext, salt}: HashPayload) : Promise<string> => {
     const saltRounds = salt ? parseInt(salt) : parseInt(process.env.SALT || "12")
-    return bcryptjs.hashSync(plaintext ,saltRounds)
+    return await hash (plaintext ,saltRounds)
 } 
 
 export const compareHash = async ({plaintext, value}:ComparePayload): Promise<boolean> => {
-    return  bcryptjs.compareSync(plaintext ,value)
+    return await compare (plaintext ,value)
 } 

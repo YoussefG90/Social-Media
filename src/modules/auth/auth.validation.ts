@@ -30,7 +30,7 @@ export  const getOtp = {
 
 export  const verfiyOtp = {
     body:getOtp.body.extend({
-        otp:z.string()
+        otp:Validate.genralFields.otp
     })
 }
 

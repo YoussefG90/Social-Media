@@ -19,7 +19,7 @@ export const genralFields = {
     phone:z.string().regex(new RegExp(/^(002|\+2)?01[0125][0-9]{8}$/)),
     gender:z.enum([...Object.values(genderEnum)]),
     age:z.number().lt(100).gte(16),
-    // otp:z.string().pattern(new RegExp(/^\d{6}$/)),
+    otp:z.string().regex(/^\d{6}$/),
     // id:z.string().custom((value,helper)=>{
     //     return Types.ObjectId.isValid(value) || helper.message("In-Valid ObjectId")
     // }),

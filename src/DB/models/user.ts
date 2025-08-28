@@ -7,10 +7,11 @@ export interface IUser extends Document {
   _id: Types.ObjectId;
   firstName: string;
   lastName: string;
+  userName:string;
   email: string;
   password:string;
   age:number; 
-  phone:string;
+  phone?:string;
   emailOTP:string;
   emailOTPExpires:Date; 
   resetPasswordOTP:string;
@@ -20,15 +21,18 @@ export interface IUser extends Document {
   tempEmail:string;
   gender:genderEnum;
   role:roleEnum; 
+  changeCredentialsTime:Date;
+  createdAt:Date;
+  updatedAt?:Date;
 }
 
 
 const userSchema = new Schema<IUser> ({
-  firstName: {type :String , required:true},
-  lastName:{type :String , required:true},
+  firstName: {type :String , required:true , minlength:2 , maxlength:25},
+  lastName:{type :String , required:true, minlength:2 , maxlength:25},
   email: {type :String , required:true, unique:true},
   password:{type :String , required:true},
-  phone:{type :String , required:true},
+  phone:{type :String },
   age:{type :Number , required:true},
   emailOTP: String,
   emailOTPExpires: Date,
@@ -44,8 +48,19 @@ const userSchema = new Schema<IUser> ({
        message:`Only Allowed Roles are : ${Object.values(genderEnum).join(", ")}`},
        default:roleEnum.user},
 },{
-  timestamps:true
+  timestamps:true,
+  toJSON:{virtuals:true},
+  toObject:{virtuals:true}
 })
 
-const UserModel = model <IUser>("User" , userSchema)
+userSchema.virtual("userName").set(function (value:string) {
+  const [firstName , lastName] = value.split(" ") || [];
+  this.set({firstName,lastName});
+}).get(function () {
+  return this.firstName + " " + this.lastName;
+})
+
+
+const UserModel =  model <IUser>("User" , userSchema)
+
 export default UserModel

@@ -11,6 +11,7 @@ exports.genralFields = {
     phone: zod_1.z.string().regex(new RegExp(/^(002|\+2)?01[0125][0-9]{8}$/)),
     gender: zod_1.z.enum([...Object.values(user_1.genderEnum)]),
     age: zod_1.z.number().lt(100).gte(16),
+    otp: zod_1.z.string().regex(/^\d{6}$/),
     file: {
         fieldname: zod_1.z.string(),
         originalname: zod_1.z.string(),

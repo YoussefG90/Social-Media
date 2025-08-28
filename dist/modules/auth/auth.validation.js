@@ -62,6 +62,6 @@ exports.getOtp = {
 };
 exports.verfiyOtp = {
     body: exports.getOtp.body.extend({
-        otp: zod_1.z.string()
+        otp: Validate.genralFields.otp
     })
 };
