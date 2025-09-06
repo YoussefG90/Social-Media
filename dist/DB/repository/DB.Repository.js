@@ -19,6 +19,9 @@ class DataBaseRepository {
     async updateOne({ filter, update, options }) {
         return await this.model.updateOne(filter, { ...update, $inc: { __v: 1 } }, options);
     }
+    async findOneAndUpdate({ filter, update, options }) {
+        return await this.model.findOneAndUpdate(filter, { ...update, $inc: { __v: 1 } }, { new: true, ...options });
+    }
     async create({ data, options, }) {
         return await this.model.create(data, options);
     }

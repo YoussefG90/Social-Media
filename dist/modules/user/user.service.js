@@ -6,11 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const user_1 = __importDefault(require("../../DB/models/user"));
 const Token_1 = require("../../utils/Security/Token");
 const User_Repository_1 = require("../../DB/repository/User.Repository");
-const Token_Repository_1 = require("../../DB/repository/Token.Repository");
-const token_1 = require("../../DB/models/token");
+const cloudinary_1 = require("../../utils/Multer/cloudinary");
 class UserServices {
     userModel = new User_Repository_1.UserReposirotry(user_1.default);
-    tokenModel = new Token_Repository_1.TokenRepository(token_1.TokenModel);
     constructor() { }
     profile = async (req, res) => {
         return res.json({ message: "Done", data: { user: req.user, decoded: req.decoded } });
@@ -35,6 +33,35 @@ class UserServices {
         const credentials = await (0, Token_1.CreateLoginCredentials)(req.user);
         await (0, Token_1.createRevokeToken)(req.decoded);
         return res.status(201).json({ message: "Done", data: { credentials } });
+    };
+    profileImage = async (req, res) => {
+        const { secure_url, public_id } = await (0, cloudinary_1.uploadFile)({
+            file: req.file, path: `Users/${req.user?._id}/Profile`,
+        });
+        const user = await this.userModel.findOneAndUpdate({
+            filter: { _id: req.user?._id },
+            update: { profileImage: { secure_url, public_id } },
+        });
+        if (user?.profileImage?.public_id) {
+            await (0, cloudinary_1.destroyFile)({ public_id: user.profileImage.public_id, });
+        }
+        return res.status(201).json({ message: "Profile Picture Uploaded" });
+    };
+    coverImage = async (req, res) => {
+        const { secure_url, public_id } = await (0, cloudinary_1.uploadFile)({
+            file: req.file,
+            path: `Users/${req.user?._id}/Cover`,
+        });
+        const user = await this.userModel.findOneAndUpdate({
+            filter: { _id: req.user?._id },
+            update: { coverImages: { secure_url, public_id } },
+        });
+        if (user?.coverImages && "public_id" in user.coverImages) {
+            await (0, cloudinary_1.destroyFile)({
+                public_id: user.coverImages.public_id,
+            });
+        }
+        return res.status(201).json({ message: "Cover Image Uploaded" });
     };
 }
 exports.default = new UserServices();

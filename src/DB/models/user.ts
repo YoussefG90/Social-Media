@@ -27,8 +27,8 @@ export interface IUser extends Document {
   createdAt:Date;
   updatedAt?:Date;
   provider:providerEnum;
-  profileImage?:string;
-  coverImages?:string[];
+  profileImage?:{ secure_url: string; public_id: string };
+  coverImages?: { secure_url: string; public_id: string }[];
 }
 
 
@@ -49,8 +49,10 @@ const userSchema = new Schema<IUser> ({
   confirmEmail: {type: Boolean,default: false},
   gender:{type:String , enum : genderEnum, default:genderEnum.male},
   role:{type:String , enum :roleEnum,default:roleEnum.user},
-  profileImage:{type:String},
-  coverImages:[String]
+  profileImage: {secure_url: { type: String, required: true },public_id: { type: String, required: true },},
+  coverImages: [{secure_url: { type: String, required: true },public_id: { type: String, required: true }}
+],
+
 },{
   timestamps:true,
   toJSON:{virtuals:true},

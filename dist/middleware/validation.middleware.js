@@ -17,7 +17,6 @@ exports.genralFields = {
         originalname: zod_1.z.string(),
         encoding: zod_1.z.string(),
         mimetype: zod_1.z.string(),
-        finalPath: zod_1.z.string(),
         destination: zod_1.z.string(),
         filename: zod_1.z.string(),
         path: zod_1.z.string(),
