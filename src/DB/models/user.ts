@@ -26,7 +26,12 @@ export interface IUser extends Document {
   changeCredentialsTime:Date;
   createdAt:Date;
   updatedAt?:Date;
+  freezeAt?:Date;
+  freezeBy:Types.ObjectId;
+  restoreAt?:Date;
+  restoreBy:Types.ObjectId;
   provider:providerEnum;
+
   profileImage?:{ secure_url: string; public_id: string };
   coverImages?: { secure_url: string; public_id: string }[];
 }
@@ -47,6 +52,10 @@ const userSchema = new Schema<IUser> ({
   provider:{type:String , enum:providerEnum , default: providerEnum.System},
   resetPassword: {type: Boolean,default: false},
   confirmEmail: {type: Boolean,default: false},
+  freezeAt:Date,
+  freezeBy:{type:Schema.Types.ObjectId ,ref:"User"},
+  restoreAt:Date,
+  restoreBy:{type:Schema.Types.ObjectId ,ref:"User"},
   gender:{type:String , enum : genderEnum, default:genderEnum.male},
   role:{type:String , enum :roleEnum,default:roleEnum.user},
   profileImage: {secure_url: { type: String, required: true },public_id: { type: String, required: true },},

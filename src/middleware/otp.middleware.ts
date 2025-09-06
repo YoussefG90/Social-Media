@@ -5,6 +5,7 @@ import { compareHash, generateHash } from '../utils/Security/Hash';
 import { generateotp } from '../modules/auth/auth.service';
 import { emailEvent } from '../utils/Events/email';
 import { UserReposirotry } from '../DB/repository/User.Repository';
+import { successResponse } from '../utils/Response/success.response';
 
 export enum flag {email= "email" , forgetPassword = "forgetPassword" , newEmail = "newEmail"}
 
@@ -33,7 +34,7 @@ class OTPMiddleware {
                 update:{$set:{confirmEmail:false ,emailOTP:hashEmailOtp , emailOTPExpires:new Date(Date.now()+ 3 * 60 * 1000)},
                 $exists:{emailOTP:false}}})
             emailEvent.emit("Confirm Email", { to: email, otp:newOtp });  
-            res.status(200).json({message:"New Verify OTP Sent Successfully"}) 
+            successResponse({res , message:"New Verify OTP Sent Successfully"})
             break;
         case flag.forgetPassword:
             const newRestOtp = generateotp()
@@ -42,7 +43,7 @@ class OTPMiddleware {
                 update:{$set:{resetPassword:false ,resetPasswordOTP:hashRestOtp , resetPasswordOTPExpires:new Date(Date.now()+ 3 * 60 * 1000)},
                 $exists:{resetPassword:false}}})
             emailEvent.emit("Reset Password", { to: email, otp:newRestOtp }); 
-            res.status(200).json({message:"New Reset OTP Sent Successfully"})    
+            successResponse({res , message:"New Reset OTP Sent Successfully"})   
     
         default:
             break;
@@ -65,7 +66,7 @@ verify = async (req:Request , res:Response):Promise<void> => {
             if (!unHashOtp) {throw new BadRequest("InValid OTP")}
              await this.userModel.updateOne({filter:{email} ,
                 update:{$unset:{emailOTP:0 , emailOTPExpires:0},$set:{confirmEmail:true}}})
-            res.status(200).json({message:"Email Verfied Successfully"})  
+            successResponse({res , message:"Email Verfied Successfully"})     
             break; 
         case flag.forgetPassword:
             if (user.resetPasswordOTPExpires.getTime() < Date.now()) {
@@ -74,7 +75,8 @@ verify = async (req:Request , res:Response):Promise<void> => {
             if (!unHashResetOtp) {throw new BadRequest("InValid OTP")}
              await this.userModel.updateOne({filter:{email} ,
                 update:{$unset:{resetPasswordOTP:0 , resetPasswordOTPExpires:0},$set:{resetPassword:true}}})
-            res.status(200).json({message:"Reset OTP Verfied Successfully"})
+            successResponse({res , message:"Reset OTP Verfied Successfully"})
+                
         default:
             break;
     }

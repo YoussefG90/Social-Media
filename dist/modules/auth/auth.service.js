@@ -42,6 +42,7 @@ const email_1 = require("../../utils/Events/email");
 const Token_1 = require("../../utils/Security/Token");
 const User_Repository_1 = require("../../DB/repository/User.Repository");
 const google_auth_library_1 = require("google-auth-library");
+const success_response_1 = require("../../utils/Response/success.response");
 const generateotp = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -69,7 +70,7 @@ class AuthenticationService {
             throw new error_response_1.NotFound("User Not Found Or Registered From Another Provider");
         }
         const Tokens = await (0, Token_1.CreateLoginCredentials)(user);
-        return res.status(201).json({ message: "Done", Tokens });
+        return (0, success_response_1.successResponse)({ res, data: { Tokens } });
     };
     signupWithGmail = async (req, res) => {
         const { idToken } = req.body;
@@ -83,14 +84,13 @@ class AuthenticationService {
         }
         const [newuser] = await this.userModel.create({ data: [{
                     firstName: given_name, lastName: family_name,
-                    profileImage: picture,
                     email: email
                 }] }) || [];
         if (!newuser) {
             throw new error_response_1.BadRequest("Fail To SignUp With Gmail Please Try Again Later");
         }
         const Tokens = await (0, Token_1.CreateLoginCredentials)(newuser);
-        return res.status(201).json({ message: "Done", Tokens });
+        return (0, success_response_1.successResponse)({ res, statusCode: 201, data: { Tokens } });
     };
     signup = async (req, res) => {
         const otp = (0, exports.generateotp)();
@@ -106,12 +106,12 @@ class AuthenticationService {
                     password: hashPassword, phone: encryptePhone, age, gender, emailOTP: encryptOTP,
                     emailOTPExpires: new Date(Date.now() + 3 * 60 * 1000) }] });
         email_1.emailEvent.emit("Confirm Email", { to: email, otp });
-        res.status(201).json({ message: "Account Created Check Your Email To Verify" });
+        return (0, success_response_1.successResponse)({ res, statusCode: 201, message: "Account Created Check Your Email To Verify" });
     };
     login = async (req, res) => {
         const { email, password } = req.body;
         const user = await this.userModel.findOne({ filter: { email, deletedAt: { $exists: false },
-                provider: user_1.providerEnum.System } });
+                provider: user_1.providerEnum.System, freezeAt: { $exists: false } } });
         if (!user) {
             throw new error_response_1.NotFound("User Not Found");
         }
@@ -124,7 +124,7 @@ class AuthenticationService {
             throw new error_response_1.BadRequest("InVaild Login Data");
         }
         const Tokens = await (0, Token_1.CreateLoginCredentials)(user);
-        return res.status(200).json({ message: "Done", Tokens });
+        return (0, success_response_1.successResponse)({ res, data: { Tokens } });
     };
     forgetPassword = async (req, res) => {
         const { email, newPassword } = req.body;
@@ -139,7 +139,7 @@ class AuthenticationService {
         }
         const hashPassword = await (0, Hash_1.generateHash)({ plaintext: newPassword });
         await this.userModel.updateOne({ filter: { email }, update: { password: hashPassword } });
-        return res.status(201).json({ message: "Password Rest Successfully" });
+        return (0, success_response_1.successResponse)({ res, statusCode: 201, message: "Password Rest Successfully" });
     };
 }
 exports.default = new AuthenticationService();

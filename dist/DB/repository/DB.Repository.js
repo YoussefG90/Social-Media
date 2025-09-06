@@ -25,5 +25,11 @@ class DataBaseRepository {
     async create({ data, options, }) {
         return await this.model.create(data, options);
     }
+    async findByIdAndUpdate({ id, update, options = { new: true } }) {
+        return this.model.findByIdAndUpdate(id, { ...update, $inc: { __v: 1 } }, options);
+    }
+    async deleteOne({ filter }) {
+        return await this.model.deleteOne(filter);
+    }
 }
 exports.DataBaseRepository = DataBaseRepository;

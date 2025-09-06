@@ -8,6 +8,8 @@ import { emailEvent } from '../../utils/Events/email';
 import { CreateLoginCredentials} from '../../utils/Security/Token';
 import { UserReposirotry } from '../../DB/repository/User.Repository';
 import {OAuth2Client, type TokenPayload} from 'google-auth-library';
+import { successResponse } from '../../utils/Response/success.response';
+import { ILoginResponse } from './auth.entities';
 
 
 
@@ -43,7 +45,7 @@ class AuthenticationService {
         throw new NotFound("User Not Found Or Registered From Another Provider")
       }
       const Tokens = await CreateLoginCredentials(user)
-      return res.status(201).json({message:"Done" , Tokens})
+      return successResponse<ILoginResponse>({res , data:{Tokens}})
     }
 
 
@@ -59,14 +61,13 @@ class AuthenticationService {
       }
       const [newuser] = await this.userModel.create({data:[{
         firstName:given_name as string, lastName:family_name as string,
-        profileImage:picture as string, 
         email:email as string
     }]}) || []
     if (!newuser) {
         throw new BadRequest("Fail To SignUp With Gmail Please Try Again Later")
     }
       const Tokens = await CreateLoginCredentials(newuser)
-      return res.status(201).json({message:"Done" , Tokens})
+      return successResponse<ILoginResponse>({res ,statusCode:201, data:{Tokens}})
     }
 
     signup = async (req:Request , res:Response) => {
@@ -82,14 +83,14 @@ class AuthenticationService {
         await this.userModel.createUser({data:[{firstName , lastName , email , 
             password:hashPassword , phone:encryptePhone , age , gender,emailOTP:encryptOTP,
              emailOTPExpires: new Date(Date.now() + 3 * 60 * 1000)}]})
-        emailEvent.emit("Confirm Email", { to: email, otp });       
-        res.status(201).json({message:"Account Created Check Your Email To Verify"})        
+        emailEvent.emit("Confirm Email", { to: email, otp });  
+        return successResponse({res ,statusCode:201, message:"Account Created Check Your Email To Verify"})           
     }
 
     login = async (req:Request , res:Response) => {
         const {email , password}:ILoginInputs = req.body
         const user = await this.userModel.findOne({filter :{email , deletedAt:{$exists:false} ,
-             provider:providerEnum.System}})
+             provider:providerEnum.System , freezeAt:{$exists:false}}})
         if (!user) {
            throw new NotFound("User Not Found")
         }
@@ -102,7 +103,7 @@ class AuthenticationService {
             throw new BadRequest("InVaild Login Data")
         }
         const Tokens = await CreateLoginCredentials(user)
-        return res.status(200).json({message:"Done" , Tokens})
+        return successResponse<ILoginResponse>({res , data:{Tokens}})
     }
 
     forgetPassword = async (req:Request , res:Response):Promise<Response> =>{
@@ -118,7 +119,7 @@ class AuthenticationService {
         }
         const hashPassword = await generateHash({plaintext : newPassword})
         await this.userModel.updateOne({filter:{email},update:{password:hashPassword}})
-        return res.status(201).json({message:"Password Rest Successfully"})
+        return successResponse({res ,statusCode:201, message:"Password Rest Successfully"})
     }
     
 }

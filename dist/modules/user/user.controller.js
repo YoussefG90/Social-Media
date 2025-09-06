@@ -43,7 +43,11 @@ const validation_middleware_1 = require("../../middleware/validation.middleware"
 const validators = __importStar(require("./user.validation"));
 const Token_1 = require("../../utils/Security/Token");
 const cloud_1 = require("../../utils/Multer/cloud");
+const user_authorization_1 = require("./user.authorization");
 const router = (0, express_1.Router)();
+router.delete("{/:userId}/freeze-profile", (0, auth_middleware_1.authentication)(), (0, validation_middleware_1.Validation)(validators.freezeAccount), user_service_1.default.freezeAccount);
+router.patch("/:userId/restore-account", (0, auth_middleware_1.authorization)(user_authorization_1.endPoint.restore), (0, validation_middleware_1.Validation)(validators.restoreAccount), user_service_1.default.restoreAccount);
+router.delete("/:userId", (0, auth_middleware_1.authorization)(user_authorization_1.endPoint.hardDelete), (0, validation_middleware_1.Validation)(validators.hardDelete), user_service_1.default.hardDelete);
 router.patch("/profile-Image", (0, auth_middleware_1.authentication)(), (0, cloud_1.cloudFiles)({ validation: cloud_1.fileValidation.Image }).single("Image"), (0, validation_middleware_1.Validation)(validators.profileImage), user_service_1.default.profileImage);
 router.patch("/cover-Image", (0, auth_middleware_1.authentication)(), (0, cloud_1.cloudFiles)({ validation: cloud_1.fileValidation.Image }).single("Cover"), (0, validation_middleware_1.Validation)(validators.coverImage), user_service_1.default.coverImage);
 router.get("/profile", (0, auth_middleware_1.authentication)(), user_service_1.default.profile);

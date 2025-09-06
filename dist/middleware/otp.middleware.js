@@ -10,6 +10,7 @@ const Hash_1 = require("../utils/Security/Hash");
 const auth_service_1 = require("../modules/auth/auth.service");
 const email_1 = require("../utils/Events/email");
 const User_Repository_1 = require("../DB/repository/User.Repository");
+const success_response_1 = require("../utils/Response/success.response");
 var flag;
 (function (flag) {
     flag["email"] = "email";
@@ -33,7 +34,7 @@ class OTPMiddleware {
                     update: { $set: { confirmEmail: false, emailOTP: hashEmailOtp, emailOTPExpires: new Date(Date.now() + 3 * 60 * 1000) },
                         $exists: { emailOTP: false } } });
                 email_1.emailEvent.emit("Confirm Email", { to: email, otp: newOtp });
-                res.status(200).json({ message: "New Verify OTP Sent Successfully" });
+                (0, success_response_1.successResponse)({ res, message: "New Verify OTP Sent Successfully" });
                 break;
             case flag.forgetPassword:
                 const newRestOtp = (0, auth_service_1.generateotp)();
@@ -42,7 +43,7 @@ class OTPMiddleware {
                     update: { $set: { resetPassword: false, resetPasswordOTP: hashRestOtp, resetPasswordOTPExpires: new Date(Date.now() + 3 * 60 * 1000) },
                         $exists: { resetPassword: false } } });
                 email_1.emailEvent.emit("Reset Password", { to: email, otp: newRestOtp });
-                res.status(200).json({ message: "New Reset OTP Sent Successfully" });
+                (0, success_response_1.successResponse)({ res, message: "New Reset OTP Sent Successfully" });
             default:
                 break;
         }
@@ -64,7 +65,7 @@ class OTPMiddleware {
                 }
                 await this.userModel.updateOne({ filter: { email },
                     update: { $unset: { emailOTP: 0, emailOTPExpires: 0 }, $set: { confirmEmail: true } } });
-                res.status(200).json({ message: "Email Verfied Successfully" });
+                (0, success_response_1.successResponse)({ res, message: "Email Verfied Successfully" });
                 break;
             case flag.forgetPassword:
                 if (user.resetPasswordOTPExpires.getTime() < Date.now()) {
@@ -76,7 +77,7 @@ class OTPMiddleware {
                 }
                 await this.userModel.updateOne({ filter: { email },
                     update: { $unset: { resetPasswordOTP: 0, resetPasswordOTPExpires: 0 }, $set: { resetPassword: true } } });
-                res.status(200).json({ message: "Reset OTP Verfied Successfully" });
+                (0, success_response_1.successResponse)({ res, message: "Reset OTP Verfied Successfully" });
             default:
                 break;
         }
