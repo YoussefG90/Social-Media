@@ -34,8 +34,9 @@ const userSchema = new mongoose_1.Schema({
     confirmEmail: { type: Boolean, default: false },
     gender: { type: String, enum: genderEnum, default: genderEnum.male },
     role: { type: String, enum: roleEnum, default: roleEnum.user },
-    profileImage: { type: String },
-    coverImages: [String]
+    profileImage: { secure_url: { type: String, required: true }, public_id: { type: String, required: true }, },
+    coverImages: [{ secure_url: { type: String, required: true }, public_id: { type: String, required: true } }
+    ],
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

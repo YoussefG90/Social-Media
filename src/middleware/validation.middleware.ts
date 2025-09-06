@@ -28,7 +28,6 @@ export const genralFields = {
         originalname:z.string(),
         encoding:z.string(),
         mimetype:z.string(),
-        finalPath:z.string(),
         destination:z.string(),
         filename:z.string(),
         path:z.string(),

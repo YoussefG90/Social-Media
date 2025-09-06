@@ -32,6 +32,20 @@ export abstract class DataBaseRepository<TDocument> {
             return await this.model.updateOne(filter,{...update,$inc:{__v:1}},options)
     }
 
+    async findOneAndUpdate({
+        filter,update,options
+    }: {
+        filter: RootFilterQuery<TDocument>;
+        update: UpdateQuery<TDocument>;
+        options?: MongooseUpdateQueryOptions<TDocument> | null;
+    }): Promise<HydratedDocument<TDocument> | null> {
+        return await this.model.findOneAndUpdate(
+            filter,
+            { ...update, $inc: { __v: 1 } },
+            { new: true, ...options }
+        )
+    }
+
     async create({
         data,
         options,
