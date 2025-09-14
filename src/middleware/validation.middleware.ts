@@ -3,12 +3,13 @@ import type {ZodError , ZodType} from 'zod'
 import type {Response , Request , NextFunction} from 'express';     
 import { genderEnum } from '../DB/models/user';
 import { BadRequest } from '../utils/Response/error.response';
+import { Types } from 'mongoose';
 
 
 type keyReqType = keyof Request
 type SchemaType = Partial<Record<keyReqType ,ZodType>>
 type validationErrorType = Array<{key:keyReqType ;
-     issues:Array<{message: string ; path :string | symbol | number | undefined;
+     issues:Array<{message: string ; path :(string | symbol | number | undefined)[];
      }>
     }>
 
@@ -32,9 +33,23 @@ export const genralFields = {
         filename:z.string(),
         path:z.string(),
         size:z.number().positive()
-    }
+    },
+    files: function(mimetype:string[]) {
+        return z.strictObject({
+            fieldname:z.string(),
+            originalname:z.string(),
+            encoding:z.string(),
+            mimetype:z.enum(mimetype),
+            destination:z.string().optional(),
+            filename:z.string().optional(),
+            path:z.string().optional(),
+            size:z.number().positive()
+        })
+        
+    },
+    id:z.string().refine((data)=>{return Types.ObjectId.isValid(data)},
+            {error:"invalid objectId Format"})
 } 
-
 
 
 export const Validation = (schema:SchemaType) => {
@@ -42,12 +57,19 @@ export const Validation = (schema:SchemaType) => {
         const validationError:validationErrorType = []
         for (const key of Object.keys(schema) as keyReqType[]) {
             if (!schema[key]) continue 
+            if (req.file) {
+                req.body.attachment = req.file
+            }
+              if (req.files) {
+                req.body.attachments = req.files
+            }
+            
             const validationResult = schema[key].safeParse(req[key])
             if (!validationResult.success) {
                 const errors = validationResult.error as ZodError
                 validationError.push({key ,
                      issues:errors.issues.map((issue) => {
-                        return{message:issue.message ,path:issue.path[0]}
+                        return{message:issue.message ,path:issue.path}
                      })})
             }
             if (validationError.length) {

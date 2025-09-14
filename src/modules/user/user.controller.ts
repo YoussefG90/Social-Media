@@ -27,7 +27,9 @@ cloudFiles({validation: fileValidation.Image}).single("Cover"),
 Validation(validators.coverImage),userService.coverImage)
 
 
-
+router.patch("/update" , authentication() ,Validation(validators.updateBasicInfo) , userService.updateBasicInfo)
+router.patch("/update-password" , authentication() ,Validation(validators.updatePassword) , userService.updatePassword)
+router.patch("/update-email" , authentication() , userService.updateEmail)
 router.get("/profile" , authentication() , userService.profile)
 router.post("/refresh-token" , authentication(TokenEnum.refresh) , userService.refreshToken)
 router.post("/logout" , authentication(), Validation(validators.logout) , userService.logout)

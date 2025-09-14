@@ -1,15 +1,17 @@
 import { Request, Response } from "express";
-import { IFreezeAccountDto, IHardDeleteDto, ILogoutDto, IRestoreAccountDto } from "./user.dto";
+import {IHardDeleteDto, ILogoutDto, IRestoreAccountDto, UpdateBasicInfoDto, UpdatePassword } from "./user.dto";
 import type { UpdateQuery } from "mongoose";
 import UserModel, { HUserDocument, IUser, roleEnum } from "../../DB/models/user";
 import { CreateLoginCredentials, createRevokeToken, logoutEnum } from "../../utils/Security/Token";
-import { UserReposirotry } from "../../DB/repository/User.Repository";
+import { UserReposirotry } from "../../DB/repository";
 import { JwtPayload } from "jsonwebtoken";
 import { destroyFile, uploadFile } from "../../utils/Multer/cloudinary";
 import { successResponse } from "../../utils/Response/success.response";
 import { IUserResponse } from "./user.entities";
-import { Forbidden, NotFound, Unauthorized } from "../../utils/Response/error.response";
+import { BadRequest, Forbidden, NotFound, Unauthorized } from "../../utils/Response/error.response";
 import { ILoginResponse } from "../auth/auth.entities";
+import { generateDecryption, generateEncryption } from "../../utils/Security/Encryption";
+import { compareHash, generateHash } from "../../utils/Security/Hash";
 
 
 
@@ -22,6 +24,7 @@ class UserServices {
       if (!req.user) {
         throw new Unauthorized("Missing User Details")
       }
+       req.user.phone = generateDecryption({ciphertext:req.user.phone as string}) 
         return successResponse<IUserResponse>({res , data:{user:req.user}})
     }
 
@@ -53,17 +56,20 @@ class UserServices {
 
 
     profileImage = async (req: Request,res: Response): Promise<Response> => {
+    const oldUser = await this.userModel.findOne({filter:{_id:req.user?._id}})
+    if (oldUser?.profileImage?.public_id) {
+      await destroyFile({ public_id: oldUser.profileImage.public_id });
+    }
     const { secure_url, public_id } = await uploadFile({
-    file: req.file,path: `Users/${req.user?._id}/Profile`,});
-    const user = await this.userModel.findOneAndUpdate({
+    file: req.file,
+    path: `Users/${req.user?._id}/Profile`,});
+    await this.userModel.findOneAndUpdate({
     filter: { _id: req.user?._id }, 
     update: { profileImage: { secure_url, public_id } },
     });
-    if ((user as any)?.profileImage?.public_id) {
-    await destroyFile({public_id: (user as any).profileImage.public_id,});
-    }
     return successResponse({res , statusCode:201 ,message: "Profile Picture Uploaded" })
     };
+    
 
     coverImage = async (req: Request, res: Response): Promise<Response> => {
     const { secure_url, public_id } = await uploadFile({
@@ -135,6 +141,47 @@ class UserServices {
         throw new NotFound("User Not Found Or Fail To Hard Delelte")
       }
       return successResponse({res})
+    }
+
+    updateBasicInfo = async(req: Request<any, any, UpdateBasicInfoDto>,res: Response): Promise<Response> => {
+      if (await this.userModel.findOne({filter:{_id:req.user?._id , freezeAt:{$exists:true}}})) {
+        throw new NotFound("User Not Found")
+      }
+      if (req.body.phone) {
+        req.body.phone = generateEncryption({plaintext:req.body.phone})
+      }
+      await this.userModel.updateOne({filter:{_id:req.user?._id} , update:{...req.body}})
+      return successResponse({res , message:"User Updated Successfully"})
+    }
+
+    updatePassword = async(req: Request<any, any, UpdatePassword>,res: Response): Promise<Response> => {
+       const {oldPassword , newPassword} = req.body
+       if (await this.userModel.findOne({filter:{_id:req.user?._id , freezeAt:{$exists:true}}})) {
+        throw new NotFound("User Not Found")
+      }
+      if (!req.user?.password) {
+        throw new BadRequest("User Data Not Exist")
+      }
+      const unHashPassword = await compareHash({plaintext:oldPassword , value:req.user?.password as string})
+      if (!unHashPassword) {
+        throw new BadRequest("Invalid Old Password")
+      }
+      const newHash = await generateHash({plaintext:newPassword})
+      await this.userModel.updateOne({filter:{_id:req.user?._id} , update:{password:newHash}})
+      return successResponse({res , message:"Password Updated Successfully"})
+    }
+
+    updateEmail = async(req: Request,res: Response): Promise<Response> => {
+
+        const user = await this.userModel.findOne({filter:{resetEmail:{$exists:true}}})
+        if (!user) {
+          throw new BadRequest("Please Confirm Email OTP")
+        }
+        await this.userModel.updateOne({filter:{_id:req.user?._id} , update:{
+                $set: { email: user.tempEmail },
+                $unset: { tempEmail: 0, resetEmail: 0 }
+        }})
+      return successResponse({res , message:"Email Updated Successfully"})
     }
 
 }

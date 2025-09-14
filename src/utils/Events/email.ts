@@ -2,6 +2,8 @@ import { EventEmitter } from "events";
 import { sendEmail } from "../Email/send.email";
 import { emailTemplate } from "../Email/designs/email.template";
 import { restTemplate } from "../Email/designs/rest.password"
+import { taggedTemplate } from "../Email/designs/TaggedinPost";
+import { twoFactorAuthenticationTemplate } from "../Email/designs/TwoFactorAuthentication";
 
 export const emailEvent = new EventEmitter();
 
@@ -32,5 +34,22 @@ emailEvent.on("Reset Password", async (data: EmailEventData) => {
     data.to,
     "Reset Password",
     restTemplate({ otp: data.otp })
+  );
+});
+
+
+emailEvent.on("Tagged in Post", async (data: EmailEventData) => {
+  await safeSendEmail(
+    data.to,
+    "Tagged in Post",
+    taggedTemplate({ otp: data.otp })
+  );
+});
+
+emailEvent.on("Two Factor Authentication", async (data: EmailEventData) => {
+  await safeSendEmail(
+    data.to,
+    "Two Factor Authentication",
+    twoFactorAuthenticationTemplate({ otp: data.otp })
   );
 });

@@ -5,6 +5,31 @@ export type Lean<T> = HydratedDocument<FlattenMaps<T>>
 export abstract class DataBaseRepository<TDocument> {
     constructor(protected readonly model:Model<TDocument>) {}
 
+    async find({
+    filter,select,options
+    }: {
+    filter?: RootFilterQuery<TDocument>;
+    select?: ProjectionType<TDocument>;
+    options?: QueryOptions<TDocument>;
+    }): Promise<HydratedDocument<TDocument>[] | [] | Lean<TDocument>[]> {
+    const doc = this.model.find(filter || {}).select(select || "");
+
+    if (options?.populate) {
+        doc.populate(options.populate as PopulateOptions[]);
+    }
+    if (options?.skip) {
+        doc.skip(options.skip)
+    }
+    if (options?.limit) {
+        doc.limit(options.limit)
+    }
+     if (options?.lean) {
+        doc.lean(options.lean)
+    }
+    return await doc.exec();
+    }
+
+
     async findOne({
         filter,select,options
     }:{
@@ -72,6 +97,9 @@ export abstract class DataBaseRepository<TDocument> {
 
     async deleteOne({ filter }: { filter: RootFilterQuery<TDocument> }): Promise<DeleteResult> {
         return await this.model.deleteOne(filter);
+    }
+      async deleteMany({ filter }: { filter: RootFilterQuery<TDocument> }): Promise<DeleteResult> {
+        return await this.model.deleteMany(filter);
     }
 
 }

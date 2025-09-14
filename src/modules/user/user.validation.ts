@@ -12,6 +12,34 @@ export const logout = {
     })
 }
 
+export const updateBasicInfo = {
+    body:z.strictObject({
+        firstName:genralFields.name.optional(),
+        lastName:genralFields.name.optional(),
+        age:genralFields.age.optional(),
+        phone:genralFields.phone.optional(),
+        gender:genralFields.gender.optional()
+    })
+}
+
+
+export const updatePassword = {
+  body: z
+    .strictObject({
+      oldPassword: genralFields.password,
+      newPassword: genralFields.password,
+      confirmNewPassword: z.string(),
+    })
+    .refine(
+      (data) => data.confirmNewPassword === data.newPassword,
+      {
+        message: "confirmNewPassword notMatch newPassword",
+        path: ["confirmNewPassword"],
+      }
+    ),
+};
+
+
 export const profileImage = {
     file:z.strictObject({
         fieldname:genralFields.file.fieldname.includes("Image"),

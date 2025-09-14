@@ -3,9 +3,8 @@ import {sign , verify} from 'jsonwebtoken';
 import type {JwtPayload, Secret , SignOptions} from "jsonwebtoken";
 import UserModel, { roleEnum , HUserDocument} from '../../DB/models/user';
 import { BadRequest, NotFound, Unauthorized } from '../Response/error.response';
-import { UserReposirotry } from '../../DB/repository/User.Repository';
 import { HTokenDocument, TokenModel } from '../../DB/models/token';
-import { TokenRepository } from '../../DB/repository/Token.Repository';
+import { TokenRepository , UserReposirotry} from '../../DB/repository';
 
 
 

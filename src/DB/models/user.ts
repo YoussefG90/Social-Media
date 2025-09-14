@@ -1,4 +1,7 @@
 import { Document, HydratedDocument, Schema ,Types , model} from "mongoose"
+import { generateHash } from "../../utils/Security/Hash";
+import { emailEvent } from "../../utils/Events/email";
+
 
 
 export enum genderEnum  {male = "male" , female = "female"}
@@ -16,11 +19,13 @@ export interface IUser extends Document {
   phone?:string;
   emailOTP:string;
   emailOTPExpires:Date; 
+  newEmailOTP:string;
+  newEmailOTPExpires:Date; 
   resetPasswordOTP:string;
   resetPasswordOTPExpires:Date; 
   confirmEmail:boolean;
   resetPassword:boolean;
-  tempEmail:string;
+  resetEmail:boolean;
   gender:genderEnum;
   role:roleEnum; 
   changeCredentialsTime:Date;
@@ -31,6 +36,11 @@ export interface IUser extends Document {
   restoreAt?:Date;
   restoreBy:Types.ObjectId;
   provider:providerEnum;
+  tempEmail:string;
+  twoFactorEnabled:boolean;
+  twoFactorOTP:string;
+  twoFactorExpires:Date; 
+
 
   profileImage?:{ secure_url: string; public_id: string };
   coverImages?: { secure_url: string; public_id: string }[];
@@ -44,26 +54,32 @@ const userSchema = new Schema<IUser> ({
   password:{type:String,required:function(){return this.provider === providerEnum.System ? true : false}},
   phone:{type :String },
   age:{type :Number , required:true},
+  tempEmail:{type :String , unique:true},
   emailOTP: String,
   emailOTPExpires: Date,
+  newEmailOTP:String,
+  newEmailOTPExpires:Date,
   resetPasswordOTP:String,
   resetPasswordOTPExpires:Date, 
-  tempEmail:String,
+  resetEmail:{type: Boolean,default: false},
   provider:{type:String , enum:providerEnum , default: providerEnum.System},
   resetPassword: {type: Boolean,default: false},
   confirmEmail: {type: Boolean,default: false},
+  twoFactorEnabled:{type: Boolean,default: false},
+  twoFactorOTP:String,
+  twoFactorExpires:Date,
   freezeAt:Date,
   freezeBy:{type:Schema.Types.ObjectId ,ref:"User"},
   restoreAt:Date,
   restoreBy:{type:Schema.Types.ObjectId ,ref:"User"},
   gender:{type:String , enum : genderEnum, default:genderEnum.male},
   role:{type:String , enum :roleEnum,default:roleEnum.user},
-  profileImage: {secure_url: { type: String, required: true },public_id: { type: String, required: true },},
-  coverImages: [{secure_url: { type: String, required: true },public_id: { type: String, required: true }}
-],
+  profileImage: {secure_url: { type: String },public_id: { type: String},},
+  coverImages: [{secure_url: { type: String },public_id: { type: String }}],
 
 },{
   timestamps:true,
+  strictQuery:true,
   toJSON:{virtuals:true},
   toObject:{virtuals:true}
 })
@@ -73,6 +89,41 @@ userSchema.virtual("userName").set(function (value:string) {
   this.set({firstName,lastName});
 }).get(function () {
   return this.firstName + " " + this.lastName;
+})
+
+
+userSchema.pre("save" , async function(this:HUserDocument & {wasNew:boolean ,
+   confirmEmailPlainOtp:string},next
+) {
+  this.wasNew = this.isNew
+  if (this.isModified("password")) {
+    this.password = await generateHash({plaintext:this.password})
+  }
+  if (this.isModified("emailOTP")) {
+    this.confirmEmailPlainOtp = this.emailOTP as string
+    this.emailOTP = await generateHash({plaintext:this.emailOTP as string})
+  }
+  next()
+})
+
+
+userSchema.post("save" , async function (doc , next) {
+  const that  = this as HUserDocument & {wasNew:boolean , confirmEmailPlainOtp:string}
+  if (that.wasNew && that.confirmEmailPlainOtp) {
+    emailEvent.emit("Confirm Email", { to: this.email, otp: that.confirmEmailPlainOtp }); 
+  }
+  next()
+})
+
+
+userSchema.pre(["find" , "findOne"] , function(next){
+  const query = this.getQuery()
+  if (query.paranoid === false) {
+    this.setQuery({...query})
+  }else{
+    this.setQuery({...query , freezedAt:{$exists:true}})
+  }
+  next()
 })
 
 

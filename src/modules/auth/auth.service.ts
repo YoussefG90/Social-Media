@@ -1,15 +1,15 @@
 import type {Response , Request} from 'express';
 import { IGmail, ILoginInputs, ISignupInputs } from './dto.auth';
 import UserModel, { providerEnum } from '../../DB/models/user';
-import { BadRequest, conflict, NotFound } from '../../utils/Response/error.response';
+import { BadRequest, conflict, NotFound, Unauthorized } from '../../utils/Response/error.response';
 import { compareHash, generateHash } from '../../utils/Security/Hash';
 import { generateEncryption } from '../../utils/Security/Encryption';
-import { emailEvent } from '../../utils/Events/email';
 import { CreateLoginCredentials} from '../../utils/Security/Token';
 import { UserReposirotry } from '../../DB/repository/User.Repository';
 import {OAuth2Client, type TokenPayload} from 'google-auth-library';
 import { successResponse } from '../../utils/Response/success.response';
 import { ILoginResponse } from './auth.entities';
+import { emailEvent } from '../../utils/Events/email';
 
 
 
@@ -51,7 +51,7 @@ class AuthenticationService {
 
     signupWithGmail = async (req:Request , res:Response):Promise<Response> => {
       const  {idToken} : IGmail = req.body
-      const {email , given_name , family_name , picture} = await this.verifyGmailAccount(idToken)
+      const {email , given_name , family_name} = await this.verifyGmailAccount(idToken)
       const user = await this.userModel.findOne({filter:{email}})
       if (user) {
          if (user.provider === providerEnum.Google) { 
@@ -77,33 +77,56 @@ class AuthenticationService {
         if (checkuser) {
            throw new conflict("Email Exist"  , 409)
         }
-        const hashPassword = await generateHash({plaintext : password})
-        const encryptOTP = await generateHash({plaintext : otp})
         const encryptePhone = await generateEncryption({plaintext : phone})
         await this.userModel.createUser({data:[{firstName , lastName , email , 
-            password:hashPassword , phone:encryptePhone , age , gender,emailOTP:encryptOTP,
+            password , phone:encryptePhone , age , gender,emailOTP:otp,
              emailOTPExpires: new Date(Date.now() + 3 * 60 * 1000)}]})
-        emailEvent.emit("Confirm Email", { to: email, otp });  
+         
         return successResponse({res ,statusCode:201, message:"Account Created Check Your Email To Verify"})           
     }
 
-    login = async (req:Request , res:Response) => {
+    login = async (req:Request , res:Response): Promise<Response> => {
         const {email , password}:ILoginInputs = req.body
         const user = await this.userModel.findOne({filter :{email , deletedAt:{$exists:false} ,
              provider:providerEnum.System , freezeAt:{$exists:false}}})
         if (!user) {
            throw new NotFound("User Not Found")
         }
-        const checkOtp = await this.userModel.findOne({ filter :{confirmEmail:true}})
-        if (!checkOtp) {
+        if (!user.confirmEmail) {
            throw new BadRequest("Email Not Confirmed")
         }
         const checkpassword = await compareHash({plaintext:password , value:user.password})
         if (!checkpassword) {
             throw new BadRequest("InVaild Login Data")
         }
-        const Tokens = await CreateLoginCredentials(user)
-        return successResponse<ILoginResponse>({res , data:{Tokens}})
+        if (!user.twoFactorEnabled) {
+          const Tokens = await CreateLoginCredentials(user)
+          return successResponse<ILoginResponse>({res , data:{Tokens}})
+        }
+        const loginOtp = generateotp()
+        const hashLoginOtp = await generateHash({plaintext:loginOtp})
+        await this.userModel.updateOne({filter:{email}  , update:{
+        $set:{twoFactorOTP:hashLoginOtp ,
+        twoFactorExpires:new Date(Date.now()+ 3 * 60 * 1000)}
+            }})
+        emailEvent.emit("Two Factor Authentication", { to: email, otp: loginOtp });  
+        return successResponse({res , message:"Login OTP Sent Successfully"})
+    }
+
+    loginWithTwoFactorAuthentication = async (req:Request , res:Response):Promise<Response> => {
+      const {email , otp} = req.body
+      const user = await this.userModel.findOne({filter:{email}})
+          if (!user) {
+            throw new NotFound("User Not Found")
+          }
+          if (user.twoFactorExpires.getTime() < Date.now()) {
+          throw new Unauthorized("OTP Expired")}
+          const unHashOtp = await compareHash({plaintext:otp , value:user.twoFactorOTP})
+          if (!unHashOtp) {throw new BadRequest("InValid OTP")}
+          await this.userModel.updateOne({filter:{email} ,
+          update:{$unset:{twoFactorOTP:0 , twoFactorExpires:0}}})
+          const Tokens = await CreateLoginCredentials(user)
+          return successResponse({res , data:{Tokens}}) 
     }
 
     forgetPassword = async (req:Request , res:Response):Promise<Response> =>{
