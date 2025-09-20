@@ -5,7 +5,7 @@ import { emailEvent } from "../../utils/Events/email";
 
 
 export enum genderEnum  {male = "male" , female = "female"}
-export enum roleEnum  {user = "User" , admin = "Admin"}
+export enum roleEnum  {user = "User" , admin = "Admin", superAdmin = "SuperAdmin"}
 export enum providerEnum  {System = "System" , Google = "Google"}
 
 export interface IUser extends Document {
@@ -40,6 +40,8 @@ export interface IUser extends Document {
   twoFactorEnabled:boolean;
   twoFactorOTP:string;
   twoFactorExpires:Date; 
+  friends?:Types.ObjectId[];
+  block?:Types.ObjectId[];
 
 
   profileImage?:{ secure_url: string; public_id: string };
@@ -76,6 +78,8 @@ const userSchema = new Schema<IUser> ({
   role:{type:String , enum :roleEnum,default:roleEnum.user},
   profileImage: {secure_url: { type: String },public_id: { type: String},},
   coverImages: [{secure_url: { type: String },public_id: { type: String }}],
+  friends:[{type:Schema.Types.ObjectId ,ref:"User"}],
+  block:[{type:Schema.Types.ObjectId ,ref:"User"}],
 
 },{
   timestamps:true,
@@ -116,12 +120,28 @@ userSchema.post("save" , async function (doc , next) {
 })
 
 
+
+userSchema.post("findOneAndUpdate", async function (doc) {
+    if (!doc) return;
+    const prev = await this.model.findOne(this.getQuery()).select("role email");
+    if (prev && prev.role !== doc.role && doc.email) {
+      emailEvent.emit("Role Changed", {
+        to: doc.email,
+        otp: `Your role has been changed to ${doc.role}`,
+      });
+    }
+});
+
+
+
 userSchema.pre(["find" , "findOne"] , function(next){
   const query = this.getQuery()
   if (query.paranoid === false) {
-    this.setQuery({...query})
-  }else{
-    this.setQuery({...query , freezedAt:{$exists:true}})
+    delete query.paranoid
+    this.setQuery({ ...query })
+  } else {
+    delete query.paranoid
+    this.setQuery({ ...query, freezedAt: { $exists: false } })
   }
   next()
 })

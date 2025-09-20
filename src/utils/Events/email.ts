@@ -4,6 +4,7 @@ import { emailTemplate } from "../Email/designs/email.template";
 import { restTemplate } from "../Email/designs/rest.password"
 import { taggedTemplate } from "../Email/designs/TaggedinPost";
 import { twoFactorAuthenticationTemplate } from "../Email/designs/TwoFactorAuthentication";
+import { changeRoleTemplate } from "../Email/designs/ChangeRole";
 
 export const emailEvent = new EventEmitter();
 
@@ -43,6 +44,14 @@ emailEvent.on("Tagged in Post", async (data: EmailEventData) => {
     data.to,
     "Tagged in Post",
     taggedTemplate({ otp: data.otp })
+  );
+});
+
+emailEvent.on("Role Changed", async (data: EmailEventData) => {
+  await safeSendEmail(
+    data.to,
+    "Role Changed",
+    changeRoleTemplate({ otp: data.otp })
   );
 });
 

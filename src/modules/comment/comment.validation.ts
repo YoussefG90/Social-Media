@@ -5,12 +5,13 @@ import { fileValidation } from '../../utils/Multer/cloud'
 
 
 
-export const createPost = {
+export const createComment = {
+    params:z.strictObject({
+        postId:genralFields.id
+    }),
     body:z.strictObject({
           content:z.string().min(2).max(500000).optional(),
           attachments:z.array(genralFields.files(fileValidation.Image)).max(2).optional(),
-          availability:z.enum(AvailabilityEnum).default(AvailabilityEnum.public),
-          allowComments:z.enum(AllowCommentsEnum).default(AllowCommentsEnum.Allow),
           tags:z.array(genralFields.id).max(10).optional()
     }).superRefine((data,ctx) =>{
         if(!data.attachments?.length && !data.content){
@@ -21,6 +22,17 @@ export const createPost = {
             ctx.addIssue({code:"custom" , path:["Tages"],message:"Duplicated Tagged User"})
         }
     })
+}
+
+export const replyOnComment = {
+    params:createComment.params.extend({
+        commentId:genralFields.id
+    }),
+    body:createComment.body
+}
+
+export const freezeComment = {
+    params:replyOnComment.params
 }
 
 export const updatePost = {
@@ -57,8 +69,4 @@ export const likePost = {
     query:z.strictObject({
         action:z.enum(LikeActionEnum).default(LikeActionEnum.like)
     })
-}
-
-export const freezePost = {
-    params:updatePost.params
 }

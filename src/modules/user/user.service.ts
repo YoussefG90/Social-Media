@@ -1,31 +1,62 @@
 import { Request, Response } from "express";
 import {IHardDeleteDto, ILogoutDto, IRestoreAccountDto, UpdateBasicInfoDto, UpdatePassword } from "./user.dto";
-import type { UpdateQuery } from "mongoose";
+import type { Types, UpdateQuery } from "mongoose";
 import UserModel, { HUserDocument, IUser, roleEnum } from "../../DB/models/user";
 import { CreateLoginCredentials, createRevokeToken, logoutEnum } from "../../utils/Security/Token";
-import { UserReposirotry } from "../../DB/repository";
+import { FriendRequestRepository, PostRepository, UserReposirotry } from "../../DB/repository";
 import { JwtPayload } from "jsonwebtoken";
 import { destroyFile, uploadFile } from "../../utils/Multer/cloudinary";
 import { successResponse } from "../../utils/Response/success.response";
 import { IUserResponse } from "./user.entities";
-import { BadRequest, Forbidden, NotFound, Unauthorized } from "../../utils/Response/error.response";
+import { BadRequest, conflict, Forbidden, NotFound} from "../../utils/Response/error.response";
 import { ILoginResponse } from "../auth/auth.entities";
-import { generateDecryption, generateEncryption } from "../../utils/Security/Encryption";
+import { generateEncryption } from "../../utils/Security/Encryption";
 import { compareHash, generateHash } from "../../utils/Security/Hash";
+import { FriendRequestModel, PostModel } from "../../DB/models";
 
 
 
 
 class UserServices {
     private userModel = new UserReposirotry(UserModel)
+    private postModel = new PostRepository(PostModel)
+    private friendRequestModel = new FriendRequestRepository(FriendRequestModel)
     constructor(){}
 
     profile = async (req : Request , res:Response) : Promise<Response> => {
-      if (!req.user) {
-        throw new Unauthorized("Missing User Details")
+      const profile = await this.userModel.findOne({filter:{_id:req.user?._id}, options:{
+        populate:[{path:"friends" , select:"firstName lastName email gender profileImage phone"}]
+      }})
+      if (!profile) {
+        throw new NotFound("User Not Found")
       }
-       req.user.phone = generateDecryption({ciphertext:req.user.phone as string}) 
-        return successResponse<IUserResponse>({res , data:{user:req.user}})
+        return successResponse<IUserResponse>({res , data:{user:profile}})
+    }
+    
+    dashboard = async (req : Request , res:Response) : Promise<Response> => {
+      const results = await Promise.allSettled([
+        this.userModel.find({filter:{}}),
+        this.postModel.find({filter:{}})
+      ])
+        return successResponse({res , data:{results}})
+    }
+
+
+    changeRole = async (req : Request , res:Response) : Promise<Response> => {
+      const {userId} = req.params as unknown as {userId:Types.ObjectId}
+      const {role}:{role:roleEnum} = req.body
+      const denyRoles:roleEnum[] = [role, roleEnum.superAdmin]
+      if (req.user?.role === roleEnum.admin) {
+        denyRoles.push(roleEnum.admin)
+      }
+      const user = await this.userModel.findOneAndUpdate({filter:{
+        _id:userId as Types.ObjectId , role:{$nin:denyRoles}
+      },update:{role}
+    })
+    if (!user) {
+      throw new NotFound("User Not Found")
+    }
+        return successResponse({res})
     }
 
 
@@ -182,6 +213,53 @@ class UserServices {
                 $unset: { tempEmail: 0, resetEmail: 0 }
         }})
       return successResponse({res , message:"Email Updated Successfully"})
+    }
+
+    
+    sendFriendRequest = async(req: Request,res: Response): Promise<Response> => {
+          const {userId} = req.params as unknown as {userId:Types.ObjectId}
+          if (req.user?._id.toString() === userId.toString()) {
+              throw new BadRequest("You cannot send a friend request to yourself");
+          }
+        const checkRequest = await this.friendRequestModel.findOne({
+          filter:{
+            createdBy:{$in:[req.user?._id,userId]},
+            sentTo:{$in:[req.user?._id,userId]},
+          }})
+          if (checkRequest) {
+            throw new conflict("Friend Request Already Exist")
+          }
+          const user = await this.userModel.findOne({filter:{_id:userId}})
+          if (!user) {
+            throw new NotFound("User Not Found")
+          }
+          const [friendRequest] = await this.friendRequestModel.create({data:[{
+            createdBy:req.user?._id as Types.ObjectId , sentTo:userId
+          }]}) || []
+          if (!friendRequest) {
+            throw new BadRequest("Fail To Send Friend Request")
+          }
+      return successResponse({res ,statusCode:201, message:"Friend Request Sent Successfully"})
+    }
+
+
+        acceptFriendRequest = async(req: Request,res: Response): Promise<Response> => {
+          const {requestId} = req.params as unknown as {requestId:Types.ObjectId}
+          const friendRequest = await this.friendRequestModel.findOneAndUpdate({
+          filter:{
+           _id:requestId, sentTo:req.user?._id,acceptedAt:{$exists:false}
+          },update:{acceptedAt:new Date()}
+        })
+          if (!friendRequest) {
+            throw new conflict("Fail To Accept Friend Request")
+          }
+          await Promise.all([
+            await this.userModel.updateOne({filter:{_id:friendRequest.createdBy},
+            update:{$addToSet:{friends:friendRequest.sentTo}}}),
+            await this.userModel.updateOne({filter:{_id:friendRequest.sentTo},
+            update:{$addToSet:{friends:friendRequest.createdBy}}})
+          ])
+      return successResponse({res, message:"Friend Request Accepted Successfully"})
     }
 
 }

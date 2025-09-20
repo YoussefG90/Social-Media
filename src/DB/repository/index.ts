@@ -1,3 +1,5 @@
 export * from './User.Repository'
 export * from './Token.Repository'
 export * from './Post.Repository'
+export * from './Comment.Repository'
+export * from './FriendRequest.Repository'

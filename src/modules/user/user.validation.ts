@@ -3,7 +3,30 @@ import { logoutEnum } from '../../utils/Security/Token';
 import { genralFields } from '../../middleware/validation.middleware';
 import { fileValidation } from '../../utils/Multer/cloud';
 import { Types } from 'mongoose';
+import { roleEnum } from '../../DB/models';
 
+
+
+export const changeRole = {
+    params:z.strictObject({
+        userId:genralFields.id
+    }),
+    body:z.strictObject({
+        role:z.enum(roleEnum)
+    })
+}
+
+export const sendFriendRequest = {
+    params:z.strictObject({
+        userId:genralFields.id
+    })
+}
+
+export const acceptFriendRequest = {
+    params:z.strictObject({
+        requestId:genralFields.id
+    })
+}
 
 
 export const logout = {

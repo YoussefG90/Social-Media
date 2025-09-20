@@ -1,33 +1,18 @@
 import { HydratedDocument, model, models, Schema, Types } from "mongoose";
 import { emailEvent } from "../../utils/Events/email";
 import UserModel from "./user";
+import { IPost } from "./post";
 
 
-export enum AvailabilityEnum {
-    public = "public",
-    friends = "friends",
-    onlyMe = "Only-Me"
-}
-
-export enum AllowCommentsEnum {
-    Allow = "Allow",
-    Deny = "Deny"
-}
-
-export enum LikeActionEnum {
-    like = "like",
-    unlike = "unlike"
-}
-
-export interface IPost {
+export interface IComment {
     content?:string;
     attachments?:{ secure_url: string; public_id: string }[];
-    assistFolderId:string;
-    availability:AvailabilityEnum;
-    allowComments:AllowCommentsEnum;
+
     likes?:Types.ObjectId[];
     tags?:Types.ObjectId[];
     createdBy:Types.ObjectId;
+    postId:Types.ObjectId | Partial<IPost>;
+    commentId?:Types.ObjectId;
     freezedAt?:Date;
     freezedBy?:Types.ObjectId;
     restoreAt?:Date;
@@ -38,17 +23,16 @@ export interface IPost {
 }
 
 
-const postSchema = new Schema<IPost> ({
+const commentSchema = new Schema<IComment> ({
     content:{type:String ,minlength : 2 , maxlength:500000 , required:function(){
         return !this.attachments?.length
     }},
     attachments:[{secure_url: { type: String },public_id: { type: String }}],
-    assistFolderId:{type:String , required:true},
-    availability:{type:String , enum:AvailabilityEnum , default:AvailabilityEnum.public},
-    allowComments:{type:String , enum:AllowCommentsEnum , default:AllowCommentsEnum.Allow},
     likes:[{type:Schema.Types.ObjectId ,ref:"User"}],
     tags:[{type:Schema.Types.ObjectId ,ref:"User"}],
     createdBy:{type:Schema.Types.ObjectId ,ref:"User" , required:true},
+    postId:{type:Schema.Types.ObjectId ,ref:"Post" , required:true},
+    commentId:{type:Schema.Types.ObjectId ,ref:"Comment"},
     freezedAt:Date,
     freezedBy:{type:Schema.Types.ObjectId ,ref:"User"},
     restoreAt:Date,
@@ -61,7 +45,7 @@ const postSchema = new Schema<IPost> ({
 })
 
 
-postSchema.post("save", async function (doc) {
+commentSchema.post("save", async function (doc) {
   if (doc.tags?.length) {
     const users = await UserModel.find({ _id: { $in: doc.tags } });
     for (const user of users) {
@@ -75,7 +59,7 @@ postSchema.post("save", async function (doc) {
   }
 });
 
-postSchema.pre(["findOneAndUpdate", "updateOne" ], function (next) {
+commentSchema.pre(["findOneAndUpdate", "updateOne" ], function (next) {
   const query = this.getQuery()
   if (query.paranoid === false) {
     delete query.paranoid
@@ -87,7 +71,7 @@ postSchema.pre(["findOneAndUpdate", "updateOne" ], function (next) {
   next()
 })
 
-postSchema.pre(["find" , "findOne", "countDocuments"] , function(next){
+commentSchema.pre(["find" , "findOne", "countDocuments"] , function(next){
    const query = this.getQuery()
   if (query.paranoid === false) {
     delete query.paranoid
@@ -99,12 +83,12 @@ postSchema.pre(["find" , "findOne", "countDocuments"] , function(next){
   next()
 })
 
-postSchema.virtual("comments",{
+commentSchema.virtual("reply",{
   localField:"_id",
-  foreignField:"postId",
+  foreignField:"commentId",
   ref:"Comment",
   justOne:true
 })
 
-export const PostModel = models.Post || model<IPost>("Post" , postSchema)
-export type HPostDocument = HydratedDocument<IPost>
+export const CommentModel = models.comment || model<IComment>("Comment" , commentSchema)
+export type HCommentDocument = HydratedDocument<IComment>

@@ -9,8 +9,8 @@ export abstract class DataBaseRepository<TDocument> {
     filter,select,options
     }: {
     filter?: RootFilterQuery<TDocument>;
-    select?: ProjectionType<TDocument>;
-    options?: QueryOptions<TDocument>;
+    select?: ProjectionType<TDocument> | undefined;
+    options?: QueryOptions<TDocument> | undefined;
     }): Promise<HydratedDocument<TDocument>[] | [] | Lean<TDocument>[]> {
     const doc = this.model.find(filter || {}).select(select || "");
 
@@ -27,6 +27,28 @@ export abstract class DataBaseRepository<TDocument> {
         doc.lean(options.lean)
     }
     return await doc.exec();
+    }
+    
+    async paginate({
+    filter = {},select,options = {},page="all",size=5
+    }: {
+    filter: RootFilterQuery<TDocument>;
+    select?: ProjectionType<TDocument> | undefined;
+    options?: QueryOptions<TDocument> | undefined;
+    page?:number | "all";
+    size?:number;
+    }): Promise<HydratedDocument<TDocument>[] | [] | Lean<TDocument>[] | any> {
+        let docsCount: number | undefined = undefined
+        let pages: number | undefined = undefined
+       if (page !== "all") {
+         page = Math.floor(page < 1 ? 1 : page)
+         options.limit = Math.floor(size < 1 || !size ? 5 : size)
+         options.skip = (page - 1) * options.limit
+         docsCount = await this.model.countDocuments(filter)
+         pages = Math.ceil(docsCount/options.limit)
+       }
+        const result = await this.find({filter , select , options})
+    return {docsCount,pages ,limit:options.limit,currentPage:page !== "all"?page:undefined,result};
     }
 
 
@@ -54,6 +76,12 @@ export abstract class DataBaseRepository<TDocument> {
         update:UpdateQuery<TDocument>;
         options?:MongooseUpdateQueryOptions<TDocument> | null
     }): Promise<UpdateWriteOpResult> {
+        if (Array.isArray(update)) {
+            update.push({
+                $set: { __v: { $add: ["$__v", 1] } }
+            })
+            return await this.model.updateOne(filter ||{} , update ,options)
+        }
             return await this.model.updateOne(filter,{...update,$inc:{__v:1}},options)
     }
 

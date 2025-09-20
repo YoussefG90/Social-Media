@@ -3,6 +3,5 @@ import { roleEnum } from "../../DB/models/user";
 
 export const endPoint = {
     restore: [roleEnum.admin],
-    hardDelete: [roleEnum.admin],
-    dashboard: [roleEnum.admin , roleEnum.superAdmin]
+    hardDelete: [roleEnum.admin]
 }

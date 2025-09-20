@@ -8,6 +8,15 @@ import { cloudFiles, fileValidation } from "../../utils/Multer/cloud";
 import { endPoint } from "./user.authorization";
 const router = Router()
 
+router.post("/:userId/sendFriendRequest" , authentication(),
+   Validation(validators.sendFriendRequest) , userService.sendFriendRequest)
+
+router.patch("/acceptFriendRequest/:requestId" , authentication(),
+   Validation(validators.acceptFriendRequest) , userService.acceptFriendRequest)
+
+router.patch("/:userId/change-role" , authorization(endPoint.dashboard) ,
+    Validation(validators.changeRole) , userService.changeRole)
+
 router.delete("{/:userId}/freeze-profile" , authentication(), 
     Validation(validators.freezeAccount), userService.freezeAccount)
 
@@ -29,8 +38,10 @@ Validation(validators.coverImage),userService.coverImage)
 
 router.patch("/update" , authentication() ,Validation(validators.updateBasicInfo) , userService.updateBasicInfo)
 router.patch("/update-password" , authentication() ,Validation(validators.updatePassword) , userService.updatePassword)
+router.patch("/update-password" , authentication() ,Validation(validators.updatePassword) , userService.updatePassword)
 router.patch("/update-email" , authentication() , userService.updateEmail)
 router.get("/profile" , authentication() , userService.profile)
+router.get("/dashboard" , authorization(endPoint.dashboard) , userService.dashboard)
 router.post("/refresh-token" , authentication(TokenEnum.refresh) , userService.refreshToken)
 router.post("/logout" , authentication(), Validation(validators.logout) , userService.logout)
 
