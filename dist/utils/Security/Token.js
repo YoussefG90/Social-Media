@@ -38,9 +38,8 @@ const uuid_1 = require("uuid");
 const jsonwebtoken_1 = require("jsonwebtoken");
 const user_1 = __importStar(require("../../DB/models/user"));
 const error_response_1 = require("../Response/error.response");
-const User_Repository_1 = require("../../DB/repository/User.Repository");
 const token_1 = require("../../DB/models/token");
-const Token_Repository_1 = require("../../DB/repository/Token.Repository");
+const repository_1 = require("../../DB/repository");
 var logoutEnum;
 (function (logoutEnum) {
     logoutEnum["signoutFromAll"] = "signoutFromAll";
@@ -69,6 +68,7 @@ const DetectSignatureLevel = async (role = user_1.roleEnum.user) => {
     let signatureLevel = SecretLevelEnum.Bearer;
     switch (role) {
         case user_1.roleEnum.admin:
+        case user_1.roleEnum.superAdmin:
             signatureLevel = SecretLevelEnum.System;
             break;
         default:
@@ -113,8 +113,8 @@ const CreateLoginCredentials = async (user) => {
 };
 exports.CreateLoginCredentials = CreateLoginCredentials;
 const decodedToken = async ({ authorization, tokenType = TokenEnum.access }) => {
-    const userModel = new User_Repository_1.UserReposirotry(user_1.default);
-    const tokenModel = new Token_Repository_1.TokenRepository(token_1.TokenModel);
+    const userModel = new repository_1.UserReposirotry(user_1.default);
+    const tokenModel = new repository_1.TokenRepository(token_1.TokenModel);
     const [bearerkey, token] = authorization.split(" ");
     if (!bearerkey || !token) {
         throw new error_response_1.Unauthorized("Missing Token Parts");
@@ -139,7 +139,7 @@ const decodedToken = async ({ authorization, tokenType = TokenEnum.access }) => 
 };
 exports.decodedToken = decodedToken;
 const createRevokeToken = async (decoded) => {
-    const tokenModel = new Token_Repository_1.TokenRepository(token_1.TokenModel);
+    const tokenModel = new repository_1.TokenRepository(token_1.TokenModel);
     const [result] = (await tokenModel.create({ data: [{
                 jti: decoded.jti,
                 expiresIn: decoded.iat + Number(process.env.REFRESH_TOKEN_EXPIRATION),

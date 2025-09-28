@@ -38,11 +38,11 @@ const user_1 = __importStar(require("../../DB/models/user"));
 const error_response_1 = require("../../utils/Response/error.response");
 const Hash_1 = require("../../utils/Security/Hash");
 const Encryption_1 = require("../../utils/Security/Encryption");
-const email_1 = require("../../utils/Events/email");
 const Token_1 = require("../../utils/Security/Token");
 const User_Repository_1 = require("../../DB/repository/User.Repository");
 const google_auth_library_1 = require("google-auth-library");
 const success_response_1 = require("../../utils/Response/success.response");
+const email_1 = require("../../utils/Events/email");
 const generateotp = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -74,7 +74,7 @@ class AuthenticationService {
     };
     signupWithGmail = async (req, res) => {
         const { idToken } = req.body;
-        const { email, given_name, family_name, picture } = await this.verifyGmailAccount(idToken);
+        const { email, given_name, family_name } = await this.verifyGmailAccount(idToken);
         const user = await this.userModel.findOne({ filter: { email } });
         if (user) {
             if (user.provider === user_1.providerEnum.Google) {
@@ -99,13 +99,10 @@ class AuthenticationService {
         if (checkuser) {
             throw new error_response_1.conflict("Email Exist", 409);
         }
-        const hashPassword = await (0, Hash_1.generateHash)({ plaintext: password });
-        const encryptOTP = await (0, Hash_1.generateHash)({ plaintext: otp });
         const encryptePhone = await (0, Encryption_1.generateEncryption)({ plaintext: phone });
         await this.userModel.createUser({ data: [{ firstName, lastName, email,
-                    password: hashPassword, phone: encryptePhone, age, gender, emailOTP: encryptOTP,
+                    password, phone: encryptePhone, age, gender, emailOTP: otp,
                     emailOTPExpires: new Date(Date.now() + 3 * 60 * 1000) }] });
-        email_1.emailEvent.emit("Confirm Email", { to: email, otp });
         return (0, success_response_1.successResponse)({ res, statusCode: 201, message: "Account Created Check Your Email To Verify" });
     };
     login = async (req, res) => {
@@ -115,14 +112,41 @@ class AuthenticationService {
         if (!user) {
             throw new error_response_1.NotFound("User Not Found");
         }
-        const checkOtp = await this.userModel.findOne({ filter: { confirmEmail: true } });
-        if (!checkOtp) {
+        if (!user.confirmEmail) {
             throw new error_response_1.BadRequest("Email Not Confirmed");
         }
         const checkpassword = await (0, Hash_1.compareHash)({ plaintext: password, value: user.password });
         if (!checkpassword) {
             throw new error_response_1.BadRequest("InVaild Login Data");
         }
+        if (!user.twoFactorEnabled) {
+            const Tokens = await (0, Token_1.CreateLoginCredentials)(user);
+            return (0, success_response_1.successResponse)({ res, data: { Tokens } });
+        }
+        const loginOtp = (0, exports.generateotp)();
+        const hashLoginOtp = await (0, Hash_1.generateHash)({ plaintext: loginOtp });
+        await this.userModel.updateOne({ filter: { email }, update: {
+                $set: { twoFactorOTP: hashLoginOtp,
+                    twoFactorExpires: new Date(Date.now() + 3 * 60 * 1000) }
+            } });
+        email_1.emailEvent.emit("Two Factor Authentication", { to: email, otp: loginOtp });
+        return (0, success_response_1.successResponse)({ res, message: "Login OTP Sent Successfully" });
+    };
+    loginWithTwoFactorAuthentication = async (req, res) => {
+        const { email, otp } = req.body;
+        const user = await this.userModel.findOne({ filter: { email } });
+        if (!user) {
+            throw new error_response_1.NotFound("User Not Found");
+        }
+        if (user.twoFactorExpires.getTime() < Date.now()) {
+            throw new error_response_1.Unauthorized("OTP Expired");
+        }
+        const unHashOtp = await (0, Hash_1.compareHash)({ plaintext: otp, value: user.twoFactorOTP });
+        if (!unHashOtp) {
+            throw new error_response_1.BadRequest("InValid OTP");
+        }
+        await this.userModel.updateOne({ filter: { email },
+            update: { $unset: { twoFactorOTP: 0, twoFactorExpires: 0 } } });
         const Tokens = await (0, Token_1.CreateLoginCredentials)(user);
         return (0, success_response_1.successResponse)({ res, data: { Tokens } });
     };
