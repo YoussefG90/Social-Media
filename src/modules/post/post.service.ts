@@ -9,6 +9,7 @@ import { destroyResources, uploadFiles } from "../../utils/Multer/cloudinary"
 import { ILikePostInputsDto } from "./post.dto"
 import { Types, UpdateQuery } from "mongoose"
 import { CommentModel } from "../../DB/models"
+import { connectedSockets, getIo } from "../gateway"
 
 
 export const postAvailability = (req:Request) => {
@@ -158,6 +159,10 @@ class PostService {
         })
         if (!post) {
             throw new BadRequest("Post Not Exist")
+        }
+        if (action !== LikeActionEnum.unlike) {
+            getIo().to(connectedSockets.get(post.createdBy.toString()) as string[]
+                ).emit("likePost", {postId , userId:req.user?._id})
         }
         return successResponse({res})
     }

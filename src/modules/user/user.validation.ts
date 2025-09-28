@@ -4,6 +4,7 @@ import { genralFields } from '../../middleware/validation.middleware';
 import { fileValidation } from '../../utils/Multer/cloud';
 import { Types } from 'mongoose';
 import { roleEnum } from '../../DB/models';
+import { FriendRequestEnum } from './user.service';
 
 
 
@@ -16,10 +17,22 @@ export const changeRole = {
     })
 }
 
+
 export const sendFriendRequest = {
     params:z.strictObject({
         userId:genralFields.id
+    }),
+    body:z.strictObject({
+        type:z.enum(Object.values(FriendRequestEnum) as [string, ...string[]])
     })
+}
+
+export const block = {
+    params:sendFriendRequest.params
+}
+
+export const unFriend = {
+    params:sendFriendRequest.params
 }
 
 export const acceptFriendRequest = {

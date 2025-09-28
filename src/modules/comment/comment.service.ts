@@ -9,7 +9,7 @@ import { destroyResources, uploadFiles } from "../../utils/Multer/cloudinary"
 import { ILikePostInputsDto } from "./comment.dto"
 import { Types, UpdateQuery } from "mongoose"
 import { postAvailability } from "../post"
-import { CommentModel } from "../../DB/models"
+import { CommentModel, HCommentDocument } from "../../DB/models"
 
 
 
@@ -98,102 +98,108 @@ class CommentService {
         return successResponse({res , statusCode:201})
     }
 
-    updatePost = async (req:Request , res:Response):Promise<Response> =>{
-        const {postId} = req.params as unknown as {postId:Types.ObjectId}
-        const findPost  = await this.postModel.findOne({filter:{_id: postId, createdBy:req.user?._id}})
-        if (!findPost) {
-            throw new NotFound("Post Not Found")
-        }
-       if (req.body.tags?.length &&(await this.userModel.find({
-        filter: { _id: { $in: req.body.tags , $ne:req.user?._id} }
-        })).length !== req.body.tags.length
-        ) {
-        throw new NotFound("Sorry Some Users Taged Not Exist");
-        }
-        let attachments: { secure_url: string; public_id: string }[] = [];
-        let assistFolderId:string = uuid()
 
-        if (req.files?.length) {
-            attachments = await uploadFiles({
-             files:req.files as Express.Multer.File[],
-             path: `users/${req.user?._id}/post/${assistFolderId}`
-            })
-        }
-        const updatedPost = await this.postModel.updateOne({filter:{_id:findPost._id},
-            update:[
-            {
-            $set: {
-                content: req.body.content,
-                allowComments: req.body.allowComments ?? findPost.allowComments,
-                availability: req.body.availability ?? findPost.availability,
-                attachments: {
-                $concatArrays: [
-                    {
-                    $filter: {
-                        input: "$attachments",
-                        as: "a",
-                        cond: { $not: { $in: ["$$a.public_id", req.body.removedAttachments || []] } }
-                    }
-                    },
-                    attachments 
-                ]
-                },
-                  tags: {
-                $setUnion: [
-                    {
-                    $setDifference: ["tags",(req.body.removedTags || []).map((tag:string)=>{
-                        return Types.ObjectId.createFromHexString(tag)
-                    })]
-                    },
-                    (req.body.tags || []).map((tag:string)=>{
-                        return Types.ObjectId.createFromHexString(tag)})
-                    ]
-                },
-                assistFolderId: findPost.assistFolderId
-                  }
+    updateComment = async (req: Request, res: Response): Promise<Response> => {
+  const { postId, commentId } = req.params as unknown as {
+    postId: Types.ObjectId;
+    commentId: Types.ObjectId;
+  };
+
+  const findComment = await this.commentModel.findOne({filter:{
+    _id: commentId,
+    postId: postId,
+    createdBy: req.user?._id
+  }
+  });
+
+  if (!findComment) {
+    throw new NotFound("Comment Not Found");
+  }
+  let attachments: { secure_url: string; public_id: string }[] = [];
+  let assistFolderId: string = uuid();
+  if (req.files?.length) {
+    attachments = await uploadFiles({
+      files: req.files as Express.Multer.File[],
+      path: `users/${req.user?._id}/comments/${assistFolderId}`
+    });
+  }
+  const updatedComment = await this.commentModel.updateOne({
+    filter:{ _id: findComment._id },
+    update:[
+      {
+        $set: {
+          content: req.body.content ?? findComment.content,
+          attachments: {
+            $concatArrays: [
+              {
+                $filter: {
+                  input: "$attachments",
+                  as: "a",
+                  cond: { $not: { $in: ["$$a.public_id", req.body.removedAttachments || []] } }
                 }
-                ]})
-        if (!updatedPost) {
-            if (attachments.length) {
-             await destroyResources({
-            public_ids: attachments.map(a => a.public_id)
-             });
-             }
-                 throw new BadRequest("Fail To Publish The Post");
-            }
-        return successResponse({res})
+              },
+              attachments
+            ]
+          },
+        }
+      }
+    ]
+    });
+
+  if (!updatedComment) {
+    if (attachments.length) {
+      await destroyResources({
+        public_ids: attachments.map((a) => a.public_id)
+      });
     }
+    throw new BadRequest("Fail To Update Comment");
+  }
+
+  return successResponse({ res });
+};
 
 
-    getAllPosts = async (req:Request , res:Response):Promise<Response> => {
-        let {page , size} = req.query as unknown as {page:number;size:number;}
-        const posts = await this.postModel.paginate({
-            filter:{$or:postAvailability(req)},page,size
-        })
-        if (!posts) {
-            throw new BadRequest("Post Not Exist")
-        }
-        return successResponse({res , data:{posts}})
-    }
+
+ getAllComments = async (req: Request, res: Response): Promise<Response> => {
+  const { postId } = req.params as unknown as { postId: Types.ObjectId };
+  let { page, size } = req.query as unknown as { page: number; size: number };
+  const comments = await this.commentModel.paginate({
+    filter: { postId },
+    page,
+    size
+  });
+  if (!comments) {
+    throw new BadRequest("Comments Not Exist");
+  }
+  return successResponse({ res, data: { comments } });
+};
 
 
-    likePost = async (req:Request , res:Response):Promise<Response> => {
-        const {postId} = req.params as {postId:string}
-        const {action} = req.query as ILikePostInputsDto
-        let update: UpdateQuery<HPostDocument> = {
-            $addToSet:{likes : req.user?._id}
-        }
-        if (action === LikeActionEnum.unlike) {
-            update = {$pull:{likes : req.user?._id}}
-        }
-        const post = await this.postModel.findOneAndUpdate({
-            filter:{_id:postId , $or:postAvailability(req)}, update
-        })
-        if (!post) {
-            throw new BadRequest("Post Not Exist")
-        }
-        return successResponse({res})
-    }
+
+likeComment = async (req: Request, res: Response): Promise<Response> => {
+  const { postId, commentId } = req.params as { postId: string; commentId: string };
+  const { action } = req.query as ILikePostInputsDto;
+
+  let update: UpdateQuery<HCommentDocument> = {
+    $addToSet: { likes: req.user?._id }
+  };
+
+  if (action === LikeActionEnum.unlike) {
+    update = { $pull: { likes: req.user?._id } };
+  }
+
+  const comment = await this.commentModel.findOneAndUpdate({
+    filter:{ _id: commentId, postId },
+    update
+});
+
+  if (!comment) {
+    throw new BadRequest("Comment Not Exist");
+  }
+
+  return successResponse({ res });
+};
+
 
     freezeComment = async (req: Request, res: Response): Promise<Response> => {
         const { postId, commentId } = req.params as unknown as {postId:Types.ObjectId ,commentId:Types.ObjectId};

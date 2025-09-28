@@ -36,7 +36,7 @@ export interface IUser extends Document {
   restoreAt?:Date;
   restoreBy:Types.ObjectId;
   provider:providerEnum;
-  tempEmail:string;
+  tempEmail?:string;
   twoFactorEnabled:boolean;
   twoFactorOTP:string;
   twoFactorExpires:Date; 
@@ -56,7 +56,7 @@ const userSchema = new Schema<IUser> ({
   password:{type:String,required:function(){return this.provider === providerEnum.System ? true : false}},
   phone:{type :String },
   age:{type :Number , required:true},
-  tempEmail:{type :String , unique:true},
+  tempEmail:{type :String},
   emailOTP: String,
   emailOTPExpires: Date,
   newEmailOTP:String,

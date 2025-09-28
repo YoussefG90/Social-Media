@@ -7,7 +7,7 @@ import { fileValidation } from '../../utils/Multer/cloud'
 
 export const createComment = {
     params:z.strictObject({
-        postId:genralFields.id
+        CommentId:genralFields.id
     }),
     body:z.strictObject({
           content:z.string().min(2).max(500000).optional(),
@@ -16,7 +16,7 @@ export const createComment = {
     }).superRefine((data,ctx) =>{
         if(!data.attachments?.length && !data.content){
             ctx.addIssue({code:"custom" , path:["Content"] ,
-                 message:"Sorry Cannot Make Post Without Content Or Attachment"})
+                 message:"Sorry Cannot Make Comment Without Content Or Attachment"})
         }
         if (data.tags?.length && data.tags.length !== [new Set (data.tags)].length) {
             ctx.addIssue({code:"custom" , path:["Tages"],message:"Duplicated Tagged User"})
@@ -35,9 +35,9 @@ export const freezeComment = {
     params:replyOnComment.params
 }
 
-export const updatePost = {
+export const updateComment = {
     params:z.strictObject({
-        postId:genralFields.id
+        CommentId:genralFields.id
     }),
     body:z.strictObject({
           content:z.string().min(2).max(500000).optional(),
@@ -64,7 +64,7 @@ export const updatePost = {
 
 export const likePost = {
     params:z.strictObject({
-        postId:genralFields.id
+        CommentId:genralFields.id
     }),
     query:z.strictObject({
         action:z.enum(LikeActionEnum).default(LikeActionEnum.like)

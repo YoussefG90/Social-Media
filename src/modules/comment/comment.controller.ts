@@ -22,14 +22,14 @@ router.post('/:commentId/reply' , authentication(),
     cloudFiles({validation: fileValidation.Image}).array("attachments" , 2),
     Validation(validators.replyOnComment),commentService.replyOnComment)
 
-router.patch('/:postId/like' , authentication(),
-    Validation(validators.likePost),commentService.likePost)
+router.patch('/:postId/comment/:commentId/like' , authentication(),
+    Validation(validators.likePost),commentService.likeComment)
 
-router.get('/all' , authentication() ,commentService.getAllPosts)    
+router.get('/:postId' , authentication() ,commentService.getAllComments)    
 
-router.patch('/:postId' , authentication(),
+router.patch('/:postId/comment/:commentId/update' , authentication(),
     cloudFiles({validation: fileValidation.Image}).array("attachments" , 2),
-    Validation(validators.updatePost),commentService.updatePost)
+    Validation(validators.updateComment),commentService.updateComment)
 
 
 export default router

@@ -6,8 +6,10 @@ import {resolve} from 'path';
 import {config} from 'dotenv';
 config({path:resolve("./config/.env.development")})
 import connectDB from './DB/Connections'
-import {authRouter , userRouter , postRouter} from './modules'
+import {authRouter , userRouter , postRouter, initializeIo} from './modules'
 import { globalErrorHandling } from './utils/Response/error.response';
+import { chatRouter } from './modules/chat';
+
 
 
 const bootstrap = (): void => {
@@ -21,7 +23,8 @@ const bootstrap = (): void => {
    //modules-routing
    app.use("/post", postRouter) 
    app.use("/auth", authRouter)  
-   app.use("/user", userRouter)  
+   app.use("/user", userRouter)
+   app.use("/chat", chatRouter)
 
    //main-router
    app.get("/" , (req:Request , res:Response) => {
@@ -35,9 +38,11 @@ const bootstrap = (): void => {
    app.use(globalErrorHandling)
 
 
-   app.listen(port , () => {
+   const httpServer = app.listen(port , () => {
      console.log(`Server is Running On Port :: ${port} ✔`);
    })
+   initializeIo(httpServer)
+
 } 
 
 

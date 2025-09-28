@@ -3,7 +3,7 @@ import {IHardDeleteDto, ILogoutDto, IRestoreAccountDto, UpdateBasicInfoDto, Upda
 import type { Types, UpdateQuery } from "mongoose";
 import UserModel, { HUserDocument, IUser, roleEnum } from "../../DB/models/user";
 import { CreateLoginCredentials, createRevokeToken, logoutEnum } from "../../utils/Security/Token";
-import { FriendRequestRepository, PostRepository, UserReposirotry } from "../../DB/repository";
+import { ChatRepository, FriendRequestRepository, PostRepository, UserReposirotry } from "../../DB/repository";
 import { JwtPayload } from "jsonwebtoken";
 import { destroyFile, uploadFile } from "../../utils/Multer/cloudinary";
 import { successResponse } from "../../utils/Response/success.response";
@@ -12,14 +12,17 @@ import { BadRequest, conflict, Forbidden, NotFound} from "../../utils/Response/e
 import { ILoginResponse } from "../auth/auth.entities";
 import { generateEncryption } from "../../utils/Security/Encryption";
 import { compareHash, generateHash } from "../../utils/Security/Hash";
-import { FriendRequestModel, PostModel } from "../../DB/models";
+import { ChatModel, FriendRequestModel, PostModel } from "../../DB/models";
 
+export enum FriendRequestEnum {send = "send",delete = "delete"}
+export enum BlockEnum {block = "block",unblock = "unblock"}
 
 
 
 class UserServices {
-    private userModel = new UserReposirotry(UserModel)
-    private postModel = new PostRepository(PostModel)
+    private userModel:UserReposirotry = new UserReposirotry(UserModel)
+    private postModel:PostRepository = new PostRepository(PostModel)
+    private chatModel:ChatRepository = new ChatRepository(ChatModel)
     private friendRequestModel = new FriendRequestRepository(FriendRequestModel)
     constructor(){}
 
@@ -30,7 +33,10 @@ class UserServices {
       if (!profile) {
         throw new NotFound("User Not Found")
       }
-        return successResponse<IUserResponse>({res , data:{user:profile}})
+      const group =await this.chatModel.find({
+        filter:{particpants:{$in:req.user?._id as Types.ObjectId},group:{$exists:true}}
+      })
+        return successResponse<IUserResponse>({res , data:{user:profile , group}})
     }
     
     dashboard = async (req : Request , res:Response) : Promise<Response> => {
@@ -163,7 +169,7 @@ class UserServices {
       return successResponse({res})
     }
 
-      hardDelete = async (req: Request,res: Response): Promise<Response> => {
+    hardDelete = async (req: Request,res: Response): Promise<Response> => {
       const {userId} = req.params as IHardDeleteDto
       const user = await this.userModel.deleteOne({
         filter:{_id:userId, freezeAt: {$exists:true}}
@@ -215,35 +221,103 @@ class UserServices {
       return successResponse({res , message:"Email Updated Successfully"})
     }
 
-    
-    sendFriendRequest = async(req: Request,res: Response): Promise<Response> => {
-          const {userId} = req.params as unknown as {userId:Types.ObjectId}
+    block = async(req: Request,res: Response) => {
+      const {userId} = req.params as unknown as {userId:Types.ObjectId}
+          const {type} = req.body as unknown as {type:string}
           if (req.user?._id.toString() === userId.toString()) {
-              throw new BadRequest("You cannot send a friend request to yourself");
+              throw new BadRequest("You cannot Block yourself");
           }
-        const checkRequest = await this.friendRequestModel.findOne({
-          filter:{
-            createdBy:{$in:[req.user?._id,userId]},
-            sentTo:{$in:[req.user?._id,userId]},
-          }})
-          if (checkRequest) {
-            throw new conflict("Friend Request Already Exist")
-          }
-          const user = await this.userModel.findOne({filter:{_id:userId}})
+          const user = await this.userModel.findOne({filter:{_id:userId }})
           if (!user) {
             throw new NotFound("User Not Found")
           }
-          const [friendRequest] = await this.friendRequestModel.create({data:[{
-            createdBy:req.user?._id as Types.ObjectId , sentTo:userId
-          }]}) || []
-          if (!friendRequest) {
-            throw new BadRequest("Fail To Send Friend Request")
+          if (user.block?.includes(req.user?._id as Types.ObjectId)) {
+              throw new BadRequest("This user has blocked you,cannot Block Him");
+                }     
+          switch (type) {
+            case BlockEnum.unblock:
+                const unblock = await this.userModel.updateOne({
+                  filter:{_id:{$in:req.user?._id}},
+                  update:{ $pull: { block: userId } 
+                }})
+                  if (!unblock) {
+                    throw new NotFound("Fail To UnBlock")
+                  }
+                  successResponse({res , message:"UnBlock Successfully"})
+              break;
+          
+            default:
+              case BlockEnum.block:
+                const me = await this.userModel.findOne({filter:{ _id: req.user?._id as Types.ObjectId}});
+                if (me?.block?.includes(userId)) {
+                  throw new BadRequest("You have blocked this user, cannot Block Him Again");
+                } 
+                const block = await this.userModel.updateOne({
+                  filter:{_id:req.user?._id},
+                  update:{ $push: { block: userId } 
+                }})
+                  if (!block) {
+                    throw new NotFound("Fail To Block")
+                  }
+                  successResponse({res , message:"Block Successfully"})
+              break; 
+          }
+       
+    }
+    
+    sendFriendRequest = async(req: Request,res: Response): Promise<Response> => {
+          const {userId} = req.params as unknown as {userId:Types.ObjectId}
+          const {type} = req.body as unknown as {type:string}
+          if (req.user?._id.toString() === userId.toString()) {
+              throw new BadRequest("You cannot send a friend request to yourself");
+          }
+          const user = await this.userModel.findOne({filter:{_id:userId }})
+          if (!user) {
+            throw new NotFound("User Not Found")
+          }
+          if (user.block?.includes(req.user?._id as Types.ObjectId)) {
+              throw new BadRequest("This user has blocked you, cannot send friend request");
+                }
+          const me = await this.userModel.findOne({filter:{ _id: req.user?._id as Types.ObjectId}});
+           if (me?.block?.includes(userId)) {
+                  throw new BadRequest("You have blocked this user, cannot send friend request");
+                }      
+          switch (type) {
+            case FriendRequestEnum.delete:
+                const findRequest = await this.friendRequestModel.deleteOne({
+                  filter:{
+                      createdBy:{$in:[req.user?._id,userId]},
+                      sentTo:{$in:[req.user?._id,userId]},
+                  }})
+                  if (!findRequest) {
+                    throw new NotFound("Fail To Delete Friend Request")
+                  }
+                  successResponse({res , message:"Friend Request Deleted Successfully"})
+              break;
+          
+            default:
+              case FriendRequestEnum.send:
+               const checkRequest = await this.friendRequestModel.findOne({
+                 filter:{
+                    createdBy:{$in:[req.user?._id,userId]},
+                    sentTo:{$in:[req.user?._id,userId]},
+                            }})
+                if (checkRequest) {
+                    throw new conflict("Friend Request Already Exist")
+                  } 
+              const [friendRequest] = await this.friendRequestModel.create({data:[{
+              createdBy:req.user?._id as Types.ObjectId , sentTo:userId
+                }]}) || []
+              if (!friendRequest) {
+                  throw new BadRequest("Fail To Send Friend Request")
+                }
+              break; 
           }
       return successResponse({res ,statusCode:201, message:"Friend Request Sent Successfully"})
     }
 
 
-        acceptFriendRequest = async(req: Request,res: Response): Promise<Response> => {
+    acceptFriendRequest = async(req: Request,res: Response): Promise<Response> => {
           const {requestId} = req.params as unknown as {requestId:Types.ObjectId}
           const friendRequest = await this.friendRequestModel.findOneAndUpdate({
           filter:{
@@ -261,6 +335,32 @@ class UserServices {
           ])
       return successResponse({res, message:"Friend Request Accepted Successfully"})
     }
+
+unFriend = async (req: Request, res: Response): Promise<Response> => {
+  const { userId } = req.params as unknown as { userId: Types.ObjectId };
+
+  if (!req.user?._id) {
+    throw new BadRequest("Unauthorized request");
+  }
+  const isFriend = await this.userModel.findOne({filter:{
+    friends: userId,
+}});
+  if (!isFriend) {
+    throw new conflict("This user is not in your friends list");
+  }
+  await Promise.all([
+    this.userModel.updateOne({
+      filter:{ _id: req.user._id },
+      update:{ $pull: { friends: userId } }
+}),
+    this.userModel.updateOne({
+      filter:{ _id: userId },
+      update:{ $pull: { friends: req.user._id } }
+}),
+  ]);
+
+  return successResponse({ res, message: "Unfriend Successfully" });
+};
 
 }
 

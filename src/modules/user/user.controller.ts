@@ -6,7 +6,16 @@ import * as validators from "./user.validation"
 import { TokenEnum } from "../../utils/Security/Token";
 import { cloudFiles, fileValidation } from "../../utils/Multer/cloud";
 import { endPoint } from "./user.authorization";
+import { chatRouter } from "../chat";
 const router = Router()
+
+router.use("/:userId/chat" , chatRouter)
+
+router.patch("/:userId/block" , authentication(),
+   Validation(validators.block) , userService.block)
+
+router.patch("/:userId/unFriend" , authentication(),
+   Validation(validators.unFriend) , userService.unFriend)   
 
 router.post("/:userId/sendFriendRequest" , authentication(),
    Validation(validators.sendFriendRequest) , userService.sendFriendRequest)

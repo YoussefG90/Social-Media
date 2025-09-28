@@ -10,7 +10,7 @@ export const createPost = {
           content:z.string().min(2).max(500000).optional(),
           attachments:z.array(genralFields.files(fileValidation.Image)).max(2).optional(),
           availability:z.enum(AvailabilityEnum).default(AvailabilityEnum.public),
-          allowComments:z.enum(AllowCommentsEnum).default(AllowCommentsEnum.Allow),
+          allowPosts:z.enum(AllowCommentsEnum).default(AllowCommentsEnum.Allow),
           tags:z.array(genralFields.id).max(10).optional()
     }).superRefine((data,ctx) =>{
         if(!data.attachments?.length && !data.content){
@@ -25,14 +25,14 @@ export const createPost = {
 
 export const updatePost = {
     params:z.strictObject({
-        postId:genralFields.id
+        PostId:genralFields.id
     }),
     body:z.strictObject({
           content:z.string().min(2).max(500000).optional(),
           attachments:z.array(genralFields.files(fileValidation.Image)).max(2).optional(),
           removedAttachments:z.array(z.string()).max(2).optional(),
           availability:z.enum(AvailabilityEnum).optional(),
-          allowComments:z.enum(AllowCommentsEnum).optional(),
+          allowPosts:z.enum(AllowCommentsEnum).optional(),
           tags:z.array(genralFields.id).max(10).optional(),
           removedTags:z.array(genralFields.id).max(10).optional()
     }).superRefine((data,ctx) =>{
@@ -52,7 +52,7 @@ export const updatePost = {
 
 export const likePost = {
     params:z.strictObject({
-        postId:genralFields.id
+        PostId:genralFields.id
     }),
     query:z.strictObject({
         action:z.enum(LikeActionEnum).default(LikeActionEnum.like)
