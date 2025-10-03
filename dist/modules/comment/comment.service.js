@@ -19,7 +19,7 @@ class CommentService {
         const { postId } = req.params;
         const post = await this.postModel.findOne({ filter: {
                 _id: postId, allowComments: post_1.AllowCommentsEnum.Allow,
-                $or: (0, post_2.postAvailability)(req)
+                $or: (0, post_2.postAvailability)(req.user)
             } });
         if (!post) {
             throw new error_response_1.NotFound("Comment Not Found");
@@ -55,7 +55,7 @@ class CommentService {
                 _id: commentId, postId
             }, options: {
                 populate: [{ path: "postId", match: {
-                            allowComments: post_1.AllowCommentsEnum.Allow, $or: (0, post_2.postAvailability)(req)
+                            allowComments: post_1.AllowCommentsEnum.Allow, $or: (0, post_2.postAvailability)(req.user)
                         } }]
             }
         });

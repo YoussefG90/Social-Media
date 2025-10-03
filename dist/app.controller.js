@@ -13,10 +13,13 @@ const Connections_1 = __importDefault(require("./DB/Connections"));
 const modules_1 = require("./modules");
 const error_response_1 = require("./utils/Response/error.response");
 const chat_1 = require("./modules/chat");
+const express_2 = require("graphql-http/lib/use/express");
+const auth_middleware_1 = require("./middleware/auth.middleware");
 const bootstrap = () => {
     const app = (0, express_1.default)();
     const port = process.env.PORT || 5000;
     app.use(express_1.default.json(), (0, cors_1.default)(), (0, helmet_1.default)());
+    app.all("/graphql", (0, auth_middleware_1.authentication)(), (0, express_2.createHandler)({ schema: modules_1.schema, context: (req) => ({ user: req.raw.user }) }));
     (0, Connections_1.default)();
     app.use("/post", modules_1.postRouter);
     app.use("/auth", modules_1.authRouter);

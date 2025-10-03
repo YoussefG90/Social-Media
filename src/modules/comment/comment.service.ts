@@ -2,7 +2,7 @@ import type { Request, Response } from "express"
 import { successResponse } from "../../utils/Response/success.response"
 import { CommentRepository, PostRepository, UserReposirotry } from "../../DB/repository"
 import {AllowCommentsEnum, HPostDocument, LikeActionEnum, PostModel } from "../../DB/models/post"
-import {UserModel} from "../../DB/models/user"
+import {HUserDocument, UserModel} from "../../DB/models/user"
 import { BadRequest, Forbidden, NotFound } from "../../utils/Response/error.response"
 import {v4 as uuid} from 'uuid'
 import { destroyResources, uploadFiles } from "../../utils/Multer/cloudinary"
@@ -23,7 +23,7 @@ class CommentService {
         const {postId} = req.params as unknown as {postId:Types.ObjectId}
         const post = await this.postModel.findOne({filter:{
             _id:postId,allowComments:AllowCommentsEnum.Allow,
-            $or:postAvailability(req)
+            $or:postAvailability(req.user as HUserDocument)
         }})
         if (!post) {
             throw new NotFound("Comment Not Found")
@@ -62,7 +62,7 @@ class CommentService {
             _id:commentId,postId
         },options:{
             populate:[{path:"postId" , match : {
-                allowComments:AllowCommentsEnum.Allow,$or:postAvailability(req)
+                allowComments:AllowCommentsEnum.Allow,$or:postAvailability(req.user as HUserDocument)
             }}]
         }
     })

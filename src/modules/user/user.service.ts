@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import {IHardDeleteDto, ILogoutDto, IRestoreAccountDto, UpdateBasicInfoDto, UpdatePassword } from "./user.dto";
 import type { Types, UpdateQuery } from "mongoose";
-import UserModel, { HUserDocument, IUser, roleEnum } from "../../DB/models/user";
+import UserModel, { genderEnum, HUserDocument, IUser, roleEnum } from "../../DB/models/user";
 import { CreateLoginCredentials, createRevokeToken, logoutEnum } from "../../utils/Security/Token";
 import { ChatRepository, FriendRequestRepository, PostRepository, UserReposirotry } from "../../DB/repository";
 import { JwtPayload } from "jsonwebtoken";
@@ -13,13 +13,33 @@ import { ILoginResponse } from "../auth/auth.entities";
 import { generateEncryption } from "../../utils/Security/Encryption";
 import { compareHash, generateHash } from "../../utils/Security/Hash";
 import { ChatModel, FriendRequestModel, PostModel } from "../../DB/models";
+import { GraphQLError } from "graphql";
 
 export enum FriendRequestEnum {send = "send",delete = "delete"}
 export enum BlockEnum {block = "block",unblock = "unblock"}
 
+export interface IUserGql{
+  id:number;
+  name:string;
+  email:string;
+  gender:genderEnum;
+  password:string;
+  followers:number[]
+}
+
+let users: IUserGql[] = [
+  {
+    id: 1,
+    name: "mohamed",
+    email: "sdasdA@gmail.com",
+    gender: genderEnum.male,
+    password: "sdasd232",
+    followers: []
+  }
+];
 
 
-class UserServices {
+export class UserServices {
     private userModel:UserReposirotry = new UserReposirotry(UserModel)
     private postModel:PostRepository = new PostRepository(PostModel)
     private chatModel:ChatRepository = new ChatRepository(ChatModel)
@@ -336,7 +356,7 @@ class UserServices {
       return successResponse({res, message:"Friend Request Accepted Successfully"})
     }
 
-unFriend = async (req: Request, res: Response): Promise<Response> => {
+    unFriend = async (req: Request, res: Response): Promise<Response> => {
   const { userId } = req.params as unknown as { userId: Types.ObjectId };
 
   if (!req.user?._id) {
@@ -360,7 +380,34 @@ unFriend = async (req: Request, res: Response): Promise<Response> => {
   ]);
 
   return successResponse({ res, message: "Unfriend Successfully" });
-};
+    }
+
+    
+
+    welcome = (user:HUserDocument):string => {
+      return "Hello GraphQl" 
+    }
+
+
+    allUsers = async (args:{gender:genderEnum},authUser:HUserDocument):Promise<HUserDocument[]> => {
+      return await this.userModel.find({filter:{_id:{$ne:authUser.id},gender:args.gender}})
+    }
+
+    searchUser = (args:{email:string}):{message:string;StatusCode:number;data:IUserGql} => {
+       const user = users.find((ele) => ele.email === args.email)
+                if (!user) {
+                    throw new GraphQLError("Error Fail To Find User"),{extensions:{StatusCode:404}}
+                }
+                return {message:"Done",StatusCode:200,data:user}
+    }
+
+    addFollower = (args:{friendId:number,myId:number}):IUserGql[] => {
+      users = users.map((ele: IUserGql): IUserGql => {
+        if (ele.id === args.friendId) { ele.followers.push(args.myId); }
+        return ele;
+      });
+      return users;
+    }
 
 }
 

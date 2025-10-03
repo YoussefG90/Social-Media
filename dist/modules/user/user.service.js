@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BlockEnum = exports.FriendRequestEnum = void 0;
+exports.UserServices = exports.BlockEnum = exports.FriendRequestEnum = void 0;
 const user_1 = __importStar(require("../../DB/models/user"));
 const Token_1 = require("../../utils/Security/Token");
 const repository_1 = require("../../DB/repository");
@@ -43,6 +43,7 @@ const error_response_1 = require("../../utils/Response/error.response");
 const Encryption_1 = require("../../utils/Security/Encryption");
 const Hash_1 = require("../../utils/Security/Hash");
 const models_1 = require("../../DB/models");
+const graphql_1 = require("graphql");
 var FriendRequestEnum;
 (function (FriendRequestEnum) {
     FriendRequestEnum["send"] = "send";
@@ -53,6 +54,16 @@ var BlockEnum;
     BlockEnum["block"] = "block";
     BlockEnum["unblock"] = "unblock";
 })(BlockEnum || (exports.BlockEnum = BlockEnum = {}));
+let users = [
+    {
+        id: 1,
+        name: "mohamed",
+        email: "sdasdA@gmail.com",
+        gender: user_1.genderEnum.male,
+        password: "sdasd232",
+        followers: []
+    }
+];
 class UserServices {
     userModel = new repository_1.UserReposirotry(user_1.default);
     postModel = new repository_1.PostRepository(models_1.PostModel);
@@ -367,5 +378,28 @@ class UserServices {
         ]);
         return (0, success_response_1.successResponse)({ res, message: "Unfriend Successfully" });
     };
+    welcome = (user) => {
+        return "Hello GraphQl";
+    };
+    allUsers = async (args, authUser) => {
+        return await this.userModel.find({ filter: { _id: { $ne: authUser.id }, gender: args.gender } });
+    };
+    searchUser = (args) => {
+        const user = users.find((ele) => ele.email === args.email);
+        if (!user) {
+            throw new graphql_1.GraphQLError("Error Fail To Find User"), { extensions: { StatusCode: 404 } };
+        }
+        return { message: "Done", StatusCode: 200, data: user };
+    };
+    addFollower = (args) => {
+        users = users.map((ele) => {
+            if (ele.id === args.friendId) {
+                ele.followers.push(args.myId);
+            }
+            return ele;
+        });
+        return users;
+    };
 }
+exports.UserServices = UserServices;
 exports.default = new UserServices();

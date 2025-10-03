@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Validation = exports.genralFields = void 0;
+exports.graphValidation = exports.Validation = exports.genralFields = void 0;
 const zod_1 = require("zod");
 const user_1 = require("../DB/models/user");
 const error_response_1 = require("../utils/Response/error.response");
 const mongoose_1 = require("mongoose");
+const graphql_1 = require("graphql");
 exports.genralFields = {
     name: zod_1.z.string().min(2).max(20).regex(new RegExp(/[A-Z][a-zA-Z][^#&<>\"~;$^%{}?]{1,20}$/)),
     email: zod_1.z.email(),
@@ -65,3 +66,24 @@ const Validation = (schema) => {
     };
 };
 exports.Validation = Validation;
+const graphValidation = async (schema, args) => {
+    const validationResult = await schema.safeParseAsync(args);
+    if (!validationResult.success) {
+        const errors = validationResult.error;
+        throw new graphql_1.GraphQLError("Validation Error", {
+            extensions: {
+                statusCode: 400,
+                issues: [
+                    {
+                        key: "args",
+                        issues: errors.issues.map((issue) => ({
+                            message: issue.message,
+                            path: issue.path
+                        }))
+                    }
+                ]
+            }
+        });
+    }
+};
+exports.graphValidation = graphValidation;

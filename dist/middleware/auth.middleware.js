@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authorization = exports.authentication = void 0;
+exports.graphAuthorization = exports.authorization = exports.authentication = void 0;
+const graphql_1 = require("graphql");
 const error_response_1 = require("../utils/Response/error.response");
 const Token_1 = require("../utils/Security/Token");
 const authentication = (tokenType = Token_1.TokenEnum.access) => {
@@ -36,3 +37,9 @@ const authorization = (accessRoles = [], tokenType = Token_1.TokenEnum.access) =
     };
 };
 exports.authorization = authorization;
+const graphAuthorization = async (accessRoles = [], role) => {
+    if (!accessRoles.includes(role)) {
+        throw new graphql_1.GraphQLError("Not Authorized Account", { extensions: { StatusCode: 403 } });
+    }
+};
+exports.graphAuthorization = graphAuthorization;

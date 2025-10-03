@@ -1,3 +1,4 @@
+import { GraphQLError } from "graphql";
 import { roleEnum } from "../DB/models/user";
 import { BadRequest, Forbidden } from "../utils/Response/error.response";
 import { decodedToken, TokenEnum } from "../utils/Security/Token";
@@ -37,3 +38,10 @@ export const authentication = (tokenType:TokenEnum = TokenEnum.access) => {
     req.decoded = decoded;
     next();
   }}
+
+
+   export const graphAuthorization = async (accessRoles: roleEnum[] = [] , role:roleEnum) => {
+    if (!accessRoles.includes(role)) {
+      throw new GraphQLError("Not Authorized Account",{extensions:{StatusCode:403}})
+    }
+  }

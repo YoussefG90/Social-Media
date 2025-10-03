@@ -22,3 +22,4 @@ Object.defineProperty(exports, "userRouter", { enumerable: true, get: function (
 var post_1 = require("./post");
 Object.defineProperty(exports, "postRouter", { enumerable: true, get: function () { return post_1.router; } });
 __exportStar(require("./gateway"), exports);
+__exportStar(require("./graphql"), exports);

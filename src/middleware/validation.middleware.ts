@@ -4,6 +4,7 @@ import type {Response , Request , NextFunction} from 'express';
 import { genderEnum } from '../DB/models/user';
 import { BadRequest } from '../utils/Response/error.response';
 import { Types } from 'mongoose';
+import { GraphQLError } from 'graphql';
 
 
 type keyReqType = keyof Request
@@ -79,4 +80,27 @@ export const Validation = (schema:SchemaType) => {
         } 
         return next() as unknown as NextFunction 
     }
+}
+
+
+
+export const graphValidation = async <T=any>(schema:ZodType , args:T) => {
+            const validationResult = await schema.safeParseAsync(args)
+            if (!validationResult.success) {
+                const errors = validationResult.error as ZodError
+               throw new GraphQLError("Validation Error", {
+                    extensions: {
+                        statusCode: 400,
+                        issues: [
+                            {
+                                key: "args",
+                                issues: errors.issues.map((issue) => ({
+                                    message: issue.message,
+                                    path: issue.path
+                                }))
+                            }
+                        ]
+                    }
+                })
+            }
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.postService = exports.postAvailability = void 0;
+exports.postService = exports.PostService = exports.postAvailability = void 0;
 const success_response_1 = require("../../utils/Response/success.response");
 const repository_1 = require("../../DB/repository");
 const post_1 = require("../../DB/models/post");
@@ -11,14 +11,15 @@ const cloudinary_1 = require("../../utils/Multer/cloudinary");
 const mongoose_1 = require("mongoose");
 const models_1 = require("../../DB/models");
 const gateway_1 = require("../gateway");
-const postAvailability = (req) => {
+const graphql_1 = require("graphql");
+const postAvailability = (user) => {
     return [
         { availability: post_1.AvailabilityEnum.public },
-        { availability: post_1.AvailabilityEnum.onlyMe, createdBy: req.user?._id },
+        { availability: post_1.AvailabilityEnum.onlyMe, createdBy: user._id },
         { availability: post_1.AvailabilityEnum.friends,
-            createdBy: { $in: [...(req.user?.friends || []), req.user?._id] }
+            createdBy: { $in: [...(user.friends || []), user._id] }
         },
-        { availability: { $ne: post_1.AvailabilityEnum.onlyMe }, tags: { $in: req.user?._id } }
+        { availability: { $ne: post_1.AvailabilityEnum.onlyMe }, tags: { $in: user._id } }
     ];
 };
 exports.postAvailability = postAvailability;
@@ -121,7 +122,7 @@ class PostService {
     getAllPosts = async (req, res) => {
         let { page, size } = req.query;
         const posts = await this.postModel.paginate({
-            filter: { $or: (0, exports.postAvailability)(req) }, page, size, options: {
+            filter: { $or: (0, exports.postAvailability)(req.user) }, page, size, options: {
                 populate: [{ path: "comments", match: { commentId: { $exists: false }, freezedAt: { $exists: false } },
                         populate: [{ path: "reply", match: { commentId: { $exists: false }, freezedAt: { $exists: false } },
                                 populate: [{ path: "reply", match: { commentId: { $exists: false }, freezedAt: { $exists: false } } }]
@@ -144,7 +145,7 @@ class PostService {
             update = { $pull: { likes: req.user?._id } };
         }
         const post = await this.postModel.findOneAndUpdate({
-            filter: { _id: postId, $or: (0, exports.postAvailability)(req) }, update
+            filter: { _id: postId, $or: (0, exports.postAvailability)(req.user) }, update
         });
         if (!post) {
             throw new error_response_1.BadRequest("Post Not Exist");
@@ -192,5 +193,43 @@ class PostService {
         await this.commentModel.deleteMany({ filter: { postId } });
         return (0, success_response_1.successResponse)({ res });
     };
+    allPosts = async ({ page, size }, authUser) => {
+        const posts = await this.postModel.paginate({
+            filter: { $or: (0, exports.postAvailability)(authUser) }, page, size, options: {
+                populate: [{ path: "comments", match: { commentId: { $exists: false }, freezedAt: { $exists: false } },
+                        populate: [{ path: "reply", match: { commentId: { $exists: false }, freezedAt: { $exists: false } },
+                                populate: [{ path: "reply", match: { commentId: { $exists: false }, freezedAt: { $exists: false } } }]
+                            }]
+                    },
+                    {
+                        path: "createdBy"
+                    }
+                ]
+            }
+        });
+        if (!posts) {
+            throw new error_response_1.BadRequest("Post Not Exist");
+        }
+        return posts;
+    };
+    likeGraphPost = async ({ postId, action }, authUser) => {
+        let update = {
+            $addToSet: { likes: authUser._id }
+        };
+        if (action === post_1.LikeActionEnum.unlike) {
+            update = { $pull: { likes: authUser._id } };
+        }
+        const post = await this.postModel.findOneAndUpdate({
+            filter: { _id: postId, $or: (0, exports.postAvailability)(authUser) }, update
+        });
+        if (!post) {
+            throw new graphql_1.GraphQLError("Post Not Exist", { extensions: { StatusCode: 404 } });
+        }
+        if (action !== post_1.LikeActionEnum.unlike) {
+            (0, gateway_1.getIo)().to(gateway_1.connectedSockets.get(post.createdBy.toString())).emit("likePost", { postId, userId: authUser._id });
+        }
+        return post;
+    };
 }
+exports.PostService = PostService;
 exports.postService = new PostService();

@@ -2,7 +2,7 @@ import type { Request, Response } from "express"
 import { successResponse } from "../../utils/Response/success.response"
 import { CommentRepository, PostRepository, UserReposirotry } from "../../DB/repository"
 import { AvailabilityEnum, HPostDocument, LikeActionEnum, PostModel } from "../../DB/models/post"
-import {UserModel} from "../../DB/models/user"
+import {HUserDocument, UserModel} from "../../DB/models/user"
 import { BadRequest, Forbidden, NotFound } from "../../utils/Response/error.response"
 import {v4 as uuid} from 'uuid'
 import { destroyResources, uploadFiles } from "../../utils/Multer/cloudinary"
@@ -10,21 +10,23 @@ import { ILikePostInputsDto } from "./post.dto"
 import { Types, UpdateQuery } from "mongoose"
 import { CommentModel } from "../../DB/models"
 import { connectedSockets, getIo } from "../gateway"
+import { GraphQLError } from "graphql"
 
 
-export const postAvailability = (req:Request) => {
+
+export const postAvailability = (user:HUserDocument) => {
     return [
         {availability: AvailabilityEnum.public},
-        {availability: AvailabilityEnum.onlyMe , createdBy:req.user?._id},
+        {availability: AvailabilityEnum.onlyMe , createdBy:user._id},
         {availability: AvailabilityEnum.friends , 
-            createdBy: {$in:[...(req.user?.friends || []), req.user?._id]}
+            createdBy: {$in:[...(user.friends || []), user._id]}
         },
-        {availability: {$ne:AvailabilityEnum.onlyMe} , tags:{$in:req.user?._id}}
+        {availability: {$ne:AvailabilityEnum.onlyMe} , tags:{$in:user._id}}
     ]
 }
 
 
-class PostService {
+export class PostService {
     private postModel = new PostRepository(PostModel)
     private userModel = new UserReposirotry(UserModel)
     private commentModel = new CommentRepository(CommentModel)
@@ -126,11 +128,10 @@ class PostService {
         return successResponse({res})
     }
 
-
     getAllPosts = async (req:Request , res:Response):Promise<Response> => {
         let {page , size} = req.query as unknown as {page:number;size:number;}
         const posts = await this.postModel.paginate({
-            filter:{$or:postAvailability(req)},page,size,options:{
+            filter:{$or:postAvailability(req.user as HUserDocument)},page,size,options:{
                 populate:[{path:"comments" , match:{commentId:{$exists:false},freezedAt:{$exists:false}},
                     populate:[{path:"reply", match:{commentId:{$exists:false},freezedAt:{$exists:false}},
                      populate:[{path:"reply",match:{commentId:{$exists:false},freezedAt:{$exists:false}}}]
@@ -155,7 +156,7 @@ class PostService {
             update = {$pull:{likes : req.user?._id}}
         }
         const post = await this.postModel.findOneAndUpdate({
-            filter:{_id:postId , $or:postAvailability(req)}, update
+            filter:{_id:postId , $or:postAvailability(req.user as HUserDocument)}, update
         })
         if (!post) {
             throw new BadRequest("Post Not Exist")
@@ -196,7 +197,7 @@ class PostService {
         return successResponse({ res });
       };
 
-        hardDeletePost = async (req: Request, res: Response): Promise<Response> => {
+    hardDeletePost = async (req: Request, res: Response): Promise<Response> => {
         const { postId } = req.params as unknown as { postId: Types.ObjectId };
 
         if (!req.user?._id) throw new Forbidden("Not Authorized User");
@@ -217,6 +218,49 @@ class PostService {
         };
 
 
+
+    allPosts = async ({page , size}:{page:number , size:number} , authUser:HUserDocument   
+        ):Promise<{docsCount?:number,pages?:number ,limit?:number,currentPage?:number|undefined,result:HPostDocument[]}> => {
+        const posts = await this.postModel.paginate({
+            filter:{$or:postAvailability(authUser)},page,size,options:{
+                populate:[{path:"comments" , match:{commentId:{$exists:false},freezedAt:{$exists:false}},
+                    populate:[{path:"reply", match:{commentId:{$exists:false},freezedAt:{$exists:false}},
+                     populate:[{path:"reply",match:{commentId:{$exists:false},freezedAt:{$exists:false}}}]
+                    }]
+                },
+                {
+                    path:"createdBy"
+                }
+            ]
+            }
+        })
+        if (!posts) {
+            throw new BadRequest("Post Not Exist")
+        }
+        return posts
+    }
+
+
+    likeGraphPost = async ({postId,action}:{postId:string;action:LikeActionEnum},authUser:HUserDocument
+            ):Promise<HPostDocument> => {
+        let update: UpdateQuery<HPostDocument> = {
+            $addToSet:{likes : authUser._id}
+        }
+        if (action === LikeActionEnum.unlike) {
+            update = {$pull:{likes : authUser._id}}
+        }
+        const post = await this.postModel.findOneAndUpdate({
+            filter:{_id:postId , $or:postAvailability(authUser)}, update
+        })
+        if (!post) {
+            throw new GraphQLError("Post Not Exist",{extensions:{StatusCode:404}})
+        }
+        if (action !== LikeActionEnum.unlike) {
+            getIo().to(connectedSockets.get(post.createdBy.toString()) as string[]
+                ).emit("likePost", {postId , userId:authUser._id})
+        }
+        return post
+    }
 
 }
 

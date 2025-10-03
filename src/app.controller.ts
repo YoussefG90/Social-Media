@@ -6,9 +6,11 @@ import {resolve} from 'path';
 import {config} from 'dotenv';
 config({path:resolve("./config/.env.development")})
 import connectDB from './DB/Connections'
-import {authRouter , userRouter , postRouter, initializeIo} from './modules'
+import {authRouter , userRouter , postRouter, initializeIo, schema} from './modules'
 import { globalErrorHandling } from './utils/Response/error.response';
 import { chatRouter } from './modules/chat';
+import { createHandler } from 'graphql-http/lib/use/express';
+import { authentication } from './middleware/auth.middleware';
 
 
 
@@ -17,7 +19,8 @@ const bootstrap = (): void => {
    const port:number | string = process.env.PORT || 5000;
    app.use(express.json() , cors() , helmet())
 
-   
+   app.all("/graphql" , authentication(),createHandler({schema:schema , context:(req)=>({user:req.raw.user})}))
+
    connectDB()
    
    //modules-routing

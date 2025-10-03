@@ -6,7 +6,9 @@ import { Types } from 'mongoose';
 import { roleEnum } from '../../DB/models';
 import { FriendRequestEnum } from './user.service';
 
-
+export const welcome = z.strictObject({
+    name:z.string().min(2)
+})
 
 export const changeRole = {
     params:z.strictObject({

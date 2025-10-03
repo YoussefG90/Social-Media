@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hardDelete = exports.restoreAccount = exports.freezeAccount = exports.coverImage = exports.profileImage = exports.updatePassword = exports.updateBasicInfo = exports.logout = exports.acceptFriendRequest = exports.unFriend = exports.block = exports.sendFriendRequest = exports.changeRole = void 0;
+exports.hardDelete = exports.restoreAccount = exports.freezeAccount = exports.coverImage = exports.profileImage = exports.updatePassword = exports.updateBasicInfo = exports.logout = exports.acceptFriendRequest = exports.unFriend = exports.block = exports.sendFriendRequest = exports.changeRole = exports.welcome = void 0;
 const zod_1 = require("zod");
 const Token_1 = require("../../utils/Security/Token");
 const validation_middleware_1 = require("../../middleware/validation.middleware");
@@ -8,6 +8,9 @@ const cloud_1 = require("../../utils/Multer/cloud");
 const mongoose_1 = require("mongoose");
 const models_1 = require("../../DB/models");
 const user_service_1 = require("./user.service");
+exports.welcome = zod_1.z.strictObject({
+    name: zod_1.z.string().min(2)
+});
 exports.changeRole = {
     params: zod_1.z.strictObject({
         userId: validation_middleware_1.genralFields.id
